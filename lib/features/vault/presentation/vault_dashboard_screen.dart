@@ -221,7 +221,7 @@ class _VaultDashboardScreenState extends ConsumerState<VaultDashboardScreen> {
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     gridDelegate: ResponsiveConfig.getVaultGridDelegate(),
-                    scrollCacheExtent: 2000,
+                    cacheExtent: 2000.0,
                     itemCount: items.length + (paginatedState.isLoadingNext ? 3 : 0),
                     itemBuilder: (context, index) {
                       if (index >= items.length) {

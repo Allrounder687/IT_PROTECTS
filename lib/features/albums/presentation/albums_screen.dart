@@ -119,7 +119,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
           data: (albums) => GridView.builder(
             padding: const EdgeInsets.all(16),
             gridDelegate: ResponsiveConfig.getAlbumGridDelegate(),
-            scrollCacheExtent: 1500,
+            cacheExtent: 1500.0,
             itemCount: albums.length,
             itemBuilder: (context, index) {
               final album = albums[index];
