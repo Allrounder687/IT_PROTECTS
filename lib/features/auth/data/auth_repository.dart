@@ -1,0 +1,64 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository();
+});
+
+class AuthRepository {
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+
+  static const _keyMasterKey = 'master_key';
+  static const _keyDbKey = 'db_key';
+  static const _keySalt = 'crypto_salt';
+  static const _keyDecoySalt = 'crypto_decoy_salt';
+
+  Future<void> saveMasterKey(List<int> masterKeyBytes) async {
+    final base64Key = base64Encode(masterKeyBytes);
+    await _storage.write(key: _keyMasterKey, value: base64Key);
+  }
+
+  Future<List<int>?> getMasterKey() async {
+    final base64Key = await _storage.read(key: _keyMasterKey);
+    if (base64Key == null) return null;
+    return base64Decode(base64Key);
+  }
+
+  Future<String> getOrGenerateDatabaseKey() async {
+    var dbKey = await _storage.read(key: _keyDbKey);
+    if (dbKey == null) {
+      final random = Random.secure();
+      final keyBytes = List<int>.generate(32, (i) => random.nextInt(256));
+      dbKey = base64Encode(keyBytes);
+      await _storage.write(key: _keyDbKey, value: dbKey);
+    }
+    return dbKey;
+  }
+
+  Future<List<int>> getOrGenerateSalt() async {
+    var saltBase64 = await _storage.read(key: _keySalt);
+    if (saltBase64 == null) {
+      final random = Random.secure();
+      final saltBytes = List<int>.generate(32, (i) => random.nextInt(256));
+      saltBase64 = base64Encode(saltBytes);
+      await _storage.write(key: _keySalt, value: saltBase64);
+    }
+    return base64Decode(saltBase64);
+  }
+
+  Future<List<int>> getOrGenerateDecoySalt() async {
+    var saltBase64 = await _storage.read(key: _keyDecoySalt);
+    if (saltBase64 == null) {
+      final random = Random.secure();
+      final saltBytes = List<int>.generate(32, (i) => random.nextInt(256));
+      saltBase64 = base64Encode(saltBytes);
+      await _storage.write(key: _keyDecoySalt, value: saltBase64);
+    }
+    return base64Decode(saltBase64);
+  }
+}
