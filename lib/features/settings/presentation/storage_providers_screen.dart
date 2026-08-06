@@ -27,7 +27,65 @@ class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen>
 
     try {
       final repo = ref.read(googleDriveRepoProvider);
-      await repo.authenticate();
+      bool dialogShown = false;
+      
+      await repo.authenticate(
+        onDeviceCodePrompt: (url, code) {
+          dialogShown = true;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Center(child: Text('Device Pairing')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Please visit this URL on your phone or computer:', textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  SelectableText(url, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                  const SizedBox(height: 24),
+                  const Text('And enter the following code:', textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: SelectableText(
+                      code,
+                      style: TextStyle(
+                        fontSize: 32,
+                        letterSpacing: 4,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text('Waiting for authorization...'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    // Just hides UI; the background poll might eventually timeout
+                  },
+                  child: const Text('Cancel'),
+                ),
+              ],
+            ),
+          );
+        }
+      );
+      
+      if (dialogShown && mounted) {
+        Navigator.of(context).pop(); // Dismiss the pairing dialog
+      }
       
       // Update global active provider
       ref.read(activeCloudProvider.notifier).setProvider(repo);

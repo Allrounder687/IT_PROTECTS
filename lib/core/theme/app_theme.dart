@@ -50,7 +50,7 @@ class AppTheme {
           backgroundColor: primary,
           foregroundColor: onPrimary,
           elevation: 0,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size(64, 56), // Use a fixed minimum width rather than double.infinity (Size.fromHeight)
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

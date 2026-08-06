@@ -3,7 +3,7 @@ abstract class StorageProvider {
   String get providerId;
 
   /// Authenticate and retrieve OAuth tokens
-  Future<void> authenticate();
+  Future<void> authenticate({void Function(String url, String code)? onDeviceCodePrompt});
 
   /// Check if the user is authenticated
   Future<bool> isAuthenticated();
