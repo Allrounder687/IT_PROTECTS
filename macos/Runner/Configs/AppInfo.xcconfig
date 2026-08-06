@@ -8,7 +8,7 @@
 PRODUCT_NAME = it_protects
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.privacy.itProtects
+PRODUCT_BUNDLE_IDENTIFIER = com.syeds.itprotects
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.privacy. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.syeds. All rights reserved.

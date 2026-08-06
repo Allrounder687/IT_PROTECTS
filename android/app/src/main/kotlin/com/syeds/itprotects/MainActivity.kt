@@ -1,4 +1,4 @@
-package com.privacy.it_protects
+package com.syeds.itprotects
 
 import io.flutter.embedding.android.FlutterActivity
 
