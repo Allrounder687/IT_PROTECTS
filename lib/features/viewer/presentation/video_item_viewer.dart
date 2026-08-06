@@ -31,6 +31,16 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
     super.dispose();
   }
 
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(d.inMinutes.remainder(60));
+    final seconds = twoDigits(d.inSeconds.remainder(60));
+    if (d.inHours > 0) {
+      return '${d.inHours}:$minutes:$seconds';
+    }
+    return '${d.inMinutes}:$seconds';
+  }
+
   @override
   Widget build(BuildContext context) {
     final sessionState = ref.watch(playbackSessionProvider(widget.item));
@@ -47,7 +57,6 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
             Center(
               child: Video(controller: controller),
             ),
-            // Mock Video Scrubber when HUD is visible
             if (widget.showHud)
               Positioned(
                 bottom: 0,
@@ -65,17 +74,58 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
                   ),
                   child: Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.play_arrow, color: Colors.white),
-                        onPressed: () => player.play(),
+                      StreamBuilder<bool>(
+                        stream: player.stream.playing,
+                        builder: (context, snapshot) {
+                          final playing = snapshot.data ?? false;
+                          return IconButton(
+                            icon: Icon(playing ? Icons.pause : Icons.play_arrow, color: Colors.white),
+                            onPressed: () {
+                              if (playing) {
+                                player.pause();
+                              } else {
+                                player.play();
+                              }
+                            },
+                          );
+                        },
                       ),
-                      const Expanded(
-                        child: Slider(
-                          value: 0,
-                          onChanged: null,
+                      Expanded(
+                        child: StreamBuilder<Duration>(
+                          stream: player.stream.position,
+                          builder: (context, positionSnapshot) {
+                            final position = positionSnapshot.data ?? Duration.zero;
+                            
+                            return StreamBuilder<Duration>(
+                              stream: player.stream.duration,
+                              builder: (context, durationSnapshot) {
+                                final duration = durationSnapshot.data ?? Duration.zero;
+                                final max = duration.inMilliseconds.toDouble();
+                                final val = position.inMilliseconds.toDouble().clamp(0.0, max);
+                                
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: Slider(
+                                        value: max > 0 ? val : 0.0,
+                                        min: 0.0,
+                                        max: max > 0 ? max : 1.0,
+                                        onChanged: (v) {
+                                          player.seek(Duration(milliseconds: v.toInt()));
+                                        },
+                                      ),
+                                    ),
+                                    Text(
+                                      '${_formatDuration(position)} / ${_formatDuration(duration)}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    ),
+                                  ],
+                                );
+                              }
+                            );
+                          }
                         ),
                       ),
-                      const Text('0:00 / 0:00', style: TextStyle(color: Colors.white)),
                     ],
                   ),
                 ),
@@ -83,8 +133,32 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => _buildSkeleton(),
       error: (e, st) => Center(child: Text('Error loading video: $e', style: const TextStyle(color: Colors.red))),
+    );
+  }
+
+  Widget _buildSkeleton() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF334155), Color(0xFF1E293B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: Colors.white54),
+            const SizedBox(height: 16),
+            Text('Decrypting\n${widget.item.originalName}...', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -5,6 +5,8 @@ import '../../features/auth/presentation/pin_screen.dart';
 import '../../features/vault/presentation/vault_dashboard_screen.dart';
 import '../../features/albums/presentation/albums_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/presentation/storage_providers_screen.dart';
+import '../../features/settings/presentation/setup_decoy_pin_screen.dart';
 import '../../features/viewer/presentation/media_viewer_screen.dart';
 import 'main_scaffold.dart';
 
@@ -55,6 +57,16 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/settings',
               builder: (context, state) => const SettingsScreen(),
+              routes: [
+                GoRoute(
+                  path: 'providers',
+                  builder: (context, state) => const StorageProvidersScreen(),
+                ),
+                GoRoute(
+                  path: 'setup-decoy',
+                  builder: (context, state) => const SetupDecoyPinScreen(),
+                ),
+              ],
             ),
           ],
         ),

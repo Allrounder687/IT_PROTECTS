@@ -20,8 +20,21 @@ A client-side encrypted vault backed by free cloud providers (Google Drive, Drop
 * Integrated `flutter_secure_storage` to safely persist cryptographic salts and Master Keys.
 * Initialized `sqflite_sqlcipher` using the 256-bit Database Key and set up the local schema (Albums, Media Items, and Intrusion Logs).
 
-### 4. Security & Per-File Encryption (CEK)
-* Re-engineered the cipher to use **Per-File Content Encryption Keys (CEKs)** via AES-256-GCM.
-* Implemented the Vault Media Service to read raw image bytes, encrypt them with a unique CEK, wrap the CEK with the Master Key, and save the cipher blob to disk.
-* Built the `EncryptedGridWidget` to decrypt and render these blobs purely in volatile memory (Zero-Knowledge Display).
-* Groundwork laid for **Decoy Vault** (Fake PIN) and **Intruder Logging** (Silent Camera Snapshots on failed unlock).
+### 5. Cloud Sync & Provider Architecture
+* Abstracted `StorageProvider` for universal BYOS connectivity.
+* Added settings to choose and persist default Cloud Sync Providers.
+
+### 8. Search & Infinite Pagination
+* Upgraded Vault Dashboard with riverpod-based cursor infinite scrolling and search debouncing.
+
+### 10. Decoy Vault & Plausible Deniability
+* Complete secondary keyspace implementation routing users to a "fake" vault when they enter a secondary decoy PIN.
+* Seamlessly hides real encrypted blobs by filtering DB results purely based on `AuthMode`.
+
+### 11. Media Viewer Wiring
+* Fully functional media viewer capable of hardware-accelerated decryption streams.
+* Bound to `media_kit` real player events for a perfectly synced scrubbing UI.
+
+### 12. Albums Management
+* First-class Album objects managed via SQLite CRUD.
+* Long-press contextual menus to dynamically rename albums and toggle lock states.

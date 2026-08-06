@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../state/auth_notifier.dart';
+import '../data/auth_repository.dart';
+
+final hasPinProvider = FutureProvider<bool>((ref) async {
+  final repo = ref.read(authRepositoryProvider);
+  final pinHash = await repo.getPinHash();
+  return pinHash != null;
+});
 
 class PinScreen extends ConsumerStatefulWidget {
   const PinScreen({super.key});
@@ -12,6 +19,7 @@ class PinScreen extends ConsumerStatefulWidget {
 
 class _PinScreenState extends ConsumerState<PinScreen> {
   String _pin = '';
+  String? _firstPin; // Used for confirm pin step
 
   void _onKeyPress(String key) {
     setState(() {
@@ -25,15 +33,41 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     });
   }
 
-  void _onContinue() {
+  void _onContinue(bool hasPin) {
     if (_pin.length == 4) {
-      ref.read(authNotifierProvider.notifier).unlockVault(_pin);
+      if (hasPin) {
+        // Unlock existing
+        ref.read(authNotifierProvider.notifier).unlockVault(_pin);
+      } else {
+        // Setup flow
+        if (_firstPin == null) {
+          // First time they entered 4 digits
+          setState(() {
+            _firstPin = _pin;
+            _pin = '';
+          });
+        } else {
+          // Confirming
+          if (_pin == _firstPin) {
+            ref.read(authNotifierProvider.notifier).unlockVault(_pin);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('PINs do not match. Try again.')),
+            );
+            setState(() {
+              _firstPin = null;
+              _pin = '';
+            });
+          }
+        }
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final hasPinAsync = ref.watch(hasPinProvider);
     
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next == AuthState.unlocked) {
@@ -42,50 +76,63 @@ class _PinScreenState extends ConsumerState<PinScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to unlock vault')),
         );
+        setState(() {
+          _pin = '';
+        });
       }
     });
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Enter PIN'),
+        title: hasPinAsync.when(
+          data: (hasPin) => Text(hasPin ? 'Enter PIN' : 'Create PIN'),
+          loading: () => const Text('Secure Vault'),
+          error: (_, __) => const Text('Error'),
+        ),
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 48),
-          Text(
-            'Secure your vault',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (index) {
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: index < _pin.length
-                      ? Theme.of(context).primaryColor
-                      : Colors.transparent,
-                  border: Border.all(
-                    color: Theme.of(context).primaryColor,
-                    width: 2,
+      body: hasPinAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => Center(child: Text('Error: $e')),
+        data: (hasPin) => Column(
+          children: [
+            const SizedBox(height: 48),
+            Text(
+              hasPin 
+                ? 'Secure your vault'
+                : (_firstPin == null ? 'Create a 4-digit PIN' : 'Confirm your 4-digit PIN'),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(4, (index) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: index < _pin.length
+                        ? Theme.of(context).primaryColor
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
                   ),
-                ),
-              );
-            }),
-          ),
-          const Spacer(),
-          _buildNumberPad(authState == AuthState.authenticating),
-          const SizedBox(height: 48),
-        ],
+                );
+              }),
+            ),
+            const Spacer(),
+            _buildNumberPad(authState == AuthState.authenticating, hasPin),
+            const SizedBox(height: 48),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildNumberPad(bool isLoading) {
+  Widget _buildNumberPad(bool isLoading, bool hasPin) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
@@ -114,7 +161,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                   ? const CircularProgressIndicator()
                   : _buildActionKey(
                       icon: Icons.check,
-                      onPressed: _pin.length == 4 ? _onContinue : null,
+                      onPressed: _pin.length == 4 ? () => _onContinue(hasPin) : null,
                       color: _pin.length == 4 ? Theme.of(context).primaryColor : Colors.grey,
                     ),
             ],

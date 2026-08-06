@@ -5,6 +5,9 @@ import '../data/local_vault_repository.dart';
 import '../domain/encryption_use_case.dart';
 import '../domain/vault_item_entity.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../providers/domain/sync_job.dart';
+import '../../settings/state/settings_providers.dart';
+import '../../providers/state/sync_status_notifier.dart';
 
 final vaultListProvider = AsyncNotifierProvider.autoDispose<VaultAsyncNotifier, List<VaultItemEntity>>(VaultAsyncNotifier.new);
 
@@ -35,7 +38,7 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
     final fileName = '${_uuid.v4()}.enc';
     final savedPath = await localRepo.saveEncryptedFile(encryptionResult.encryptedDataBlob, fileName);
     
-    await localRepo.insertMediaItem(
+    final id = await localRepo.insertMediaItem(
       image.name, 
       savedPath, 
       'image', 
@@ -43,6 +46,18 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
       encryptionResult.wrappedContentKey,
       encryptionResult.iv,
     );
+    
+    final cloudSettings = ref.read(cloudSyncSettingsProvider);
+    if (cloudSettings.defaultProviderId != null && cloudSettings.defaultProviderId!.isNotEmpty) {
+      final job = SyncJob(
+        itemId: id,
+        operation: SyncOperation.upload,
+        targetProviderId: cloudSettings.defaultProviderId!,
+        createdAt: DateTime.now(),
+      );
+      await localRepo.enqueueSyncJob(job);
+      ref.read(syncStatusProvider.notifier).markAsQueued();
+    }
 
     ref.invalidateSelf();
   }

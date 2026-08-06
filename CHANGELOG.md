@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added (Phase 12 - Albums Management)
+- Implemented full CRUD functionality for Albums in `LocalVaultRepository` and `AlbumsNotifier`.
+- Added dynamic creation bottom sheet for new custom albums.
+- Added context menus to rename albums and lock/unlock them interactively.
+
+### Changed (Phase 11 - Media Viewer Wiring)
+- Replaced mock video scrubber with real `media_kit` streams for hardware-accelerated playback.
+- Wired the decryption pipeline securely into `playbackSessionProvider` using in-memory AES-GCM and `TemporaryFileManager`.
+- Connected `ImageItemViewer` to dynamically display the decrypted temporary image files.
+
+### Added (Phase 10 - Decoy Vault Plausible Deniability)
+- Introduced `AuthMode` (Real vs Decoy) managed by `authModeProvider`.
+- Added rigorous backend filtering using `is_decoy_visible` flags in `LocalVaultRepository`.
+- Built `SetupDecoyPinScreen` allowing a secondary PIN to open an entirely separate vault keyspace.
+
+### Added (Phase 8 - Search & Infinite Pagination)
+- Developed cursor-based infinite pagination for the main Vault Dashboard via `PaginatedVaultNotifier`.
+- Created `SearchNotifier` with Riverpod-based debouncing to instantly filter items as users type.
+
 ### Changed (Phase 7.2 - Defensible Security & Lifecycle Cleanup)
 - **Zero Telemetry Policy:** Implemented `SecureLogger` to enforce zero analytic/console logging in Release mode, preventing metadata and crash dump leaks.
 - **Aggressive Lifecycle Purging:** Implemented `LifecycleCleanupManager` (`WidgetsBindingObserver`) that actively triggers a mass deletion of the temporary cache directory the moment the app enters the background, goes inactive, or detaches.

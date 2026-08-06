@@ -55,6 +55,8 @@ dependencies:
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
   syncfusion_flutter_pdfviewer: ^34.2.2
+  sqflite_common_ffi: ^2.4.2
+  sqlcipher_flutter_libs: ^0.7.0+eol
 
 dev_dependencies:
   flutter_test:

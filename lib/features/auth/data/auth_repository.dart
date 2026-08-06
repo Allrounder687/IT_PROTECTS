@@ -61,4 +61,24 @@ class AuthRepository {
     }
     return base64Decode(saltBase64);
   }
+
+  // --- PIN Hashes ---
+  static const _keyPinHash = 'pin_hash';
+  static const _keyDecoyPinHash = 'decoy_pin_hash';
+
+  Future<void> savePinHash(String hash) async {
+    await _storage.write(key: _keyPinHash, value: hash);
+  }
+
+  Future<String?> getPinHash() async {
+    return await _storage.read(key: _keyPinHash);
+  }
+
+  Future<void> saveDecoyPinHash(String hash) async {
+    await _storage.write(key: _keyDecoyPinHash, value: hash);
+  }
+
+  Future<String?> getDecoyPinHash() async {
+    return await _storage.read(key: _keyDecoyPinHash);
+  }
 }

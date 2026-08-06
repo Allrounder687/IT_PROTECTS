@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_use_case.dart';
+import '../../settings/state/settings_providers.dart';
+
+import '../../../core/providers/auth_mode_provider.dart';
 
 enum AuthState { locked, authenticating, unlocked, error }
 
@@ -19,13 +22,58 @@ class AuthNotifier extends Notifier<AuthState> {
       final authUseCase = ref.read(authUseCaseProvider);
       final authRepo = ref.read(authRepositoryProvider);
 
+      final storedPinHash = await authRepo.getPinHash();
       final salt = await authRepo.getOrGenerateSalt();
-      final masterKey = await authUseCase.deriveMasterKey(pin, salt);
-      final masterKeyBytes = await masterKey.extractBytes();
-      
-      await authRepo.saveMasterKey(masterKeyBytes);
-      
-      state = AuthState.unlocked;
+
+      if (storedPinHash == null) {
+        // First run (Setup mode)
+        final newHash = await authUseCase.hashPin(pin, salt);
+        await authRepo.savePinHash(newHash);
+        
+        final masterKey = await authUseCase.deriveMasterKey(pin, salt);
+        final masterKeyBytes = await masterKey.extractBytes();
+        await authRepo.saveMasterKey(masterKeyBytes);
+        
+        ref.read(authModeProvider.notifier).state = AuthMode.real;
+        state = AuthState.unlocked;
+        return;
+      }
+
+      // Verification mode
+      final enteredHash = await authUseCase.hashPin(pin, salt);
+      if (enteredHash == storedPinHash) {
+        // Real PIN matches
+        final masterKey = await authUseCase.deriveMasterKey(pin, salt);
+        final masterKeyBytes = await masterKey.extractBytes();
+        await authRepo.saveMasterKey(masterKeyBytes);
+        
+        ref.read(authModeProvider.notifier).state = AuthMode.real;
+        state = AuthState.unlocked;
+        return;
+      }
+
+      // Check Decoy PIN
+      final securitySettings = ref.read(securitySettingsProvider);
+      if (securitySettings.decoyVaultEnabled) {
+        final storedDecoyPinHash = await authRepo.getDecoyPinHash();
+        if (storedDecoyPinHash != null) {
+          final decoySalt = await authRepo.getOrGenerateDecoySalt();
+          final enteredDecoyHash = await authUseCase.hashPin(pin, decoySalt);
+          if (enteredDecoyHash == storedDecoyPinHash) {
+            // Decoy PIN matches
+            final masterKey = await authUseCase.deriveMasterKey(pin, decoySalt);
+            final masterKeyBytes = await masterKey.extractBytes();
+            await authRepo.saveMasterKey(masterKeyBytes);
+            
+            ref.read(authModeProvider.notifier).state = AuthMode.decoy;
+            state = AuthState.unlocked;
+            return;
+          }
+        }
+      }
+
+      await _logIntruderAlert();
+      state = AuthState.error;
     } catch (e) {
       await _logIntruderAlert();
       state = AuthState.error;

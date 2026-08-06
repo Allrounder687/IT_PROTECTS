@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,5 +19,11 @@ class AuthUseCase {
       password: pin,
       nonce: salt,
     );
+  }
+
+  Future<String> hashPin(String pin, List<int> salt) async {
+    final key = await deriveMasterKey(pin, salt);
+    final bytes = await key.extractBytes();
+    return base64Encode(bytes);
   }
 }
