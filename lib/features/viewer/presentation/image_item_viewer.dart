@@ -10,15 +10,15 @@ class ImageItemViewer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fullMedia = ref.watch(fullMediaProvider(item.id.toString()));
+    final sessionState = ref.watch(playbackSessionProvider(item));
 
     return InteractiveViewer(
       minScale: 1.0,
       maxScale: 5.0,
       child: Center(
-        child: fullMedia.when(
-          data: (bytes) {
-            // Mock: in reality, bytes would be passed to Image.memory
+        child: sessionState.when(
+          data: (session) {
+            // Mock: in reality, bytes would be passed to Image.file(session.file)
             // We'll show a beautifully styled placeholder for the skeleton
             return Hero(
               tag: item.id.toString(),

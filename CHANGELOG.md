@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (Phase 7.1 - Secure Playback Sessions)
+- **Security Update:** Transitioned media decryption pipeline to `SecurePlaybackSession` temporary file management, circumventing in-memory limitations for `media_kit` and `syncfusion` while aggressively disposing files to minimize plaintext windows.
+- Refactored `VideoItemViewer`, `DocItemViewer`, and `ImageItemViewer` to mount secure local file URIs rather than byte arrays.
+- Implemented `TemporaryFileManager` using `path_provider` (temporary/cache OS directory) excluded from backups.
+- Authored extensive unit tests for secure temporary file creation, byte writing, and permanent cleanup on provider cancellation.
+
 ### Added (Phase 7 - Media Viewer System)
 - Initialized `media_kit` for hardware-accelerated cross-platform secure video playback.
 - Initialized `syncfusion_flutter_pdfviewer` for secure multi-platform document viewing.

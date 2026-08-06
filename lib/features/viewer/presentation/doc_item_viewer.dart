@@ -10,13 +10,13 @@ class DocItemViewer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fullMedia = ref.watch(fullMediaProvider(item.id.toString()));
+    final sessionState = ref.watch(playbackSessionProvider(item));
 
     return Center(
-      child: fullMedia.when(
-        data: (bytes) {
-          // If we had valid PDF bytes, we would return:
-          // return SfPdfViewer.memory(bytes);
+      child: sessionState.when(
+        data: (session) {
+          // Syncfusion SfPdfViewer supports File natively
+          // return SfPdfViewer.file(session.file);
           
           return Container(
              color: Colors.white,

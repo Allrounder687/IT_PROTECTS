@@ -99,9 +99,27 @@ class LocalVaultRepository {
     });
   }
 
-  Future<List<VaultItemEntity>> getMediaItems() async {
+  Future<List<VaultItemEntity>> getMediaItems({int limit = 50, int offset = 0}) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('media_items', orderBy: 'id DESC');
+    final List<Map<String, dynamic>> maps = await db.query(
+      'media_items', 
+      orderBy: 'id DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return maps.map((e) => VaultItemEntity.fromMap(e)).toList();
+  }
+
+  Future<List<VaultItemEntity>> searchMediaItems(String query, {int limit = 50, int offset = 0}) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'media_items',
+      where: 'original_name LIKE ?',
+      whereArgs: ['%$query%'],
+      orderBy: 'id DESC',
+      limit: limit,
+      offset: offset,
+    );
     return maps.map((e) => VaultItemEntity.fromMap(e)).toList();
   }
 
