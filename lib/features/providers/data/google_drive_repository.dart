@@ -27,6 +27,7 @@ class GoogleDriveRepository implements StorageProvider {
     final account = await GoogleSignIn.instance.authenticate();
     
     final authz = await account.authorizationClient.authorizationForScopes([drive.DriveApi.driveAppdataScope]);
+    if (authz == null) throw Exception("Failed to get token");
     
     final authHeaders = {'Authorization': 'Bearer ${authz.accessToken}'};
     
@@ -41,6 +42,7 @@ class GoogleDriveRepository implements StorageProvider {
       if (account == null) return false;
       
       final authz = await account.authorizationClient.authorizationForScopes([drive.DriveApi.driveAppdataScope]);
+      if (authz == null) return false;
       
       final authHeaders = {'Authorization': 'Bearer ${authz.accessToken}'};
       final authenticateClient = GoogleAuthClient(authHeaders);
