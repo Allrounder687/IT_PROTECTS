@@ -38,3 +38,11 @@ When working on the IT_PROTECTS project, all agents MUST adhere to the following
 - **Aesthetic:** Dark-mode-first, low-stimulus, minimalist UI with Material Design 3 (Material You).
 - **Navigation:** Bottom navigation (3-5 items), gesture navigation, thumb-friendly layouts.
 - **Responsiveness:** Maintain adaptive layouts for tablets, desktop, and TV (grid focus, larger touch targets).
+
+## 7. Cloud Storage Integrations
+- **Supported Providers:** Google Drive, Dropbox, and Microsoft OneDrive.
+- **Authentication Flows:** 
+  - **Mobile:** Use native Google Sign-In SDK for Google Drive, and `flutter_appauth` (OAuth 2.0 PKCE) for Dropbox and OneDrive.
+  - **Desktop / TV:** Use OAuth 2.0 Device Authorization Grant flow or a `url_launcher` loopback flow.
+- **Redirect URIs:** All standard OAuth providers (Dropbox, Azure) MUST be configured with the custom scheme: `com.syeds.itprotects://oauthredirect`.
+- **Zero-Knowledge Encryption:** Files synchronized to ANY cloud provider MUST be encrypted as `.enc` files before transmission. NEVER upload plaintext metadata or files.

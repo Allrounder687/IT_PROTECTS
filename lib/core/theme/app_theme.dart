@@ -12,6 +12,33 @@ class AppTheme {
   static const Color textPrimary = Color(0xFFF8FAFC); // Slate 50
   static const Color textSecondary = Color(0xFF94A3B8); // Slate 400
 
+  // Premium Gradients
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)], // Indigo to Purple
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient subtleGradient = LinearGradient(
+    colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  // Glassmorphism Utils
+  static BoxDecoration get glassDecoration => BoxDecoration(
+    color: surface.withValues(alpha: 0.6),
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.2),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
+
   static ThemeData get darkTheme {
     final baseTextTheme = Typography.material2021().white;
     

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../../core/security/lifecycle_cleanup_manager.dart';
 import '../data/local_vault_repository.dart';
 import '../domain/encryption_use_case.dart';
 import '../domain/vault_item_entity.dart';
@@ -27,8 +29,12 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
   }
 
   Future<void> importPhoto() async {
+    ref.read(ignoreLifecycleLockProvider.notifier).state = true;
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
+    if (image == null) {
+      ref.read(ignoreLifecycleLockProvider.notifier).state = false;
+      return;
+    }
 
     final bytes = await image.readAsBytes();
     final encUseCase = ref.read(encryptionUseCaseProvider);

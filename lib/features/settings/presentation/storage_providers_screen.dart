@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/data/google_drive_repository.dart';
+import '../../providers/data/dropbox_repository.dart';
+import '../../providers/data/onedrive_repository.dart';
+import '../../providers/domain/storage_provider.dart';
 import '../../providers/state/active_provider_notifier.dart';
+import '../../auth/state/auth_notifier.dart';
+import '../../../core/security/lifecycle_cleanup_manager.dart';
 import '../state/settings_providers.dart';
 import '../../../core/presentation/responsive_config.dart';
 
 final googleDriveRepoProvider = Provider((ref) => GoogleDriveRepository());
+final dropboxRepoProvider = Provider((ref) => DropboxRepository());
+final oneDriveRepoProvider = Provider((ref) => OneDriveRepository());
 
 class StorageProvidersScreen extends ConsumerStatefulWidget {
   const StorageProvidersScreen({super.key});
@@ -18,17 +25,64 @@ class StorageProvidersScreen extends ConsumerStatefulWidget {
 class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen> {
   bool _isLoading = false;
   String? _error;
+  
+  final Map<String, bool> _connectedState = {};
+  final Map<String, double> _usedBytes = {};
+  final Map<String, double> _totalBytes = {};
 
-  Future<void> _connectGoogleDrive() async {
+  @override
+  void initState() {
+    super.initState();
+    _loadAllStates();
+  }
+
+  Future<void> _loadAllStates() async {
+    await Future.wait([
+      _loadState(ref.read(googleDriveRepoProvider), 'google_drive'),
+      _loadState(ref.read(dropboxRepoProvider), 'dropbox'),
+      _loadState(ref.read(oneDriveRepoProvider), 'onedrive'),
+    ]);
+  }
+
+  Future<void> _loadState(StorageProvider repo, String id) async {
+    try {
+      final isAuth = await repo.isAuthenticated();
+      if (isAuth && mounted) {
+        setState(() {
+          _connectedState[id] = true;
+        });
+        
+        try {
+          final quota = await repo.getQuota();
+          if (mounted) {
+            setState(() {
+              _usedBytes[id] = quota['used']?.toDouble() ?? 0.0;
+              _totalBytes[id] = quota['total']?.toDouble() ?? 0.0;
+            });
+          }
+        } catch (e) {
+          // Ignore quota errors (OneDrive AppFolder scope might block drive root access)
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _connectProvider(String providerId) async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final repo = ref.read(googleDriveRepoProvider);
+      final repo = providerId == 'google_drive' 
+          ? ref.read(googleDriveRepoProvider) 
+          : providerId == 'dropbox'
+              ? ref.read(dropboxRepoProvider)
+              : ref.read(oneDriveRepoProvider);
+          
       bool dialogShown = false;
       
+      ref.read(ignoreLifecycleLockProvider.notifier).state = true;
       await repo.authenticate(
         onDeviceCodePrompt: (url, code) {
           dialogShown = true;
@@ -73,7 +127,6 @@ class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen>
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    // Just hides UI; the background poll might eventually timeout
                   },
                   child: const Text('Cancel'),
                 ),
@@ -91,17 +144,24 @@ class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen>
       ref.read(activeCloudProvider.notifier).setProvider(repo);
       
       // Update settings to persist the choice
-      ref.read(cloudSyncSettingsProvider.notifier).setDefaultProvider('google_drive');
+      ref.read(cloudSyncSettingsProvider.notifier).setDefaultProvider(providerId);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Successfully connected to Google Drive')),
-        );
+        await _loadState(repo, providerId); // Load real state after connect
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Successfully connected to ${providerId == "google_drive" ? "Google Drive" : providerId == "dropbox" ? "Dropbox" : "OneDrive"}')),
+          );
+        }
       }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
+      ref.read(ignoreLifecycleLockProvider.notifier).state = false;
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -145,10 +205,10 @@ class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen>
                 icon: Icons.add_to_drive,
                 color: Colors.blueAccent,
                 activeProviderId: activeProviderId,
-                isConnected: true, // Mocking connected state for UI visualization
-                usedBytes: 12.5 * 1024 * 1024 * 1024,
-                totalBytes: 15.0 * 1024 * 1024 * 1024,
-                onConnect: _connectGoogleDrive,
+                isConnected: _connectedState['google_drive'] == true,
+                usedBytes: _usedBytes['google_drive'] ?? 0,
+                totalBytes: _totalBytes['google_drive'] ?? 0,
+                onConnect: () => _connectProvider('google_drive'),
                 onDisconnect: _disconnectProvider,
               ),
               const SizedBox(height: 16),
@@ -158,11 +218,24 @@ class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen>
                 icon: Icons.cloud,
                 color: Colors.blue,
                 activeProviderId: activeProviderId,
-                isConnected: false,
-                usedBytes: 0,
-                totalBytes: 2.0 * 1024 * 1024 * 1024,
-                onConnect: null,
-                onDisconnect: null,
+                isConnected: _connectedState['dropbox'] == true,
+                usedBytes: _usedBytes['dropbox'] ?? 0,
+                totalBytes: _totalBytes['dropbox'] ?? 0,
+                onConnect: () => _connectProvider('dropbox'),
+                onDisconnect: _disconnectProvider,
+              ),
+              const SizedBox(height: 16),
+              _buildProviderCard(
+                id: 'onedrive',
+                name: 'Microsoft OneDrive',
+                icon: Icons.window,
+                color: Colors.lightBlue,
+                activeProviderId: activeProviderId,
+                isConnected: _connectedState['onedrive'] == true,
+                usedBytes: _usedBytes['onedrive'] ?? 0,
+                totalBytes: _totalBytes['onedrive'] ?? 0,
+                onConnect: () => _connectProvider('onedrive'),
+                onDisconnect: _disconnectProvider,
               ),
             ],
           ),
@@ -240,18 +313,20 @@ class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Storage Usage', style: Theme.of(context).textTheme.bodySmall),
-                    Text('$usedGB GB / $totalGB GB', style: Theme.of(context).textTheme.bodySmall),
+                    Text(totalBytes < 0 ? '$usedGB GB Used' : '$usedGB GB / $totalGB GB', style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: usagePercent,
-                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    usagePercent > 0.9 ? Colors.redAccent : color,
+                if (totalBytes >= 0) ...[
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: usagePercent,
+                    backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      usagePercent > 0.9 ? Colors.redAccent : color,
+                    ),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                ],
                 const SizedBox(height: 24),
               ],
               Row(

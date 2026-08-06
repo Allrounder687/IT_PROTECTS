@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart' as sqlcipher;
 import 'package:flutter/foundation.dart';
 import '../../../core/providers/auth_mode_provider.dart';
 import '../../auth/data/auth_repository.dart';
@@ -33,7 +34,7 @@ class LocalVaultRepository {
     // Use the factory to support FFI on Desktop
     final factory = (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS) 
         ? databaseFactoryFfi 
-        : databaseFactory;
+        : sqlcipher.databaseFactory;
 
     final dbPath = await factory.getDatabasesPath();
     final path = p.join(dbPath, 'vault.db');
@@ -43,7 +44,7 @@ class LocalVaultRepository {
       options: OpenDatabaseOptions(
         version: 4,
         onConfigure: (db) async {
-          await db.execute("PRAGMA key = '$dbPassword';");
+          await db.rawQuery("PRAGMA key = '$dbPassword';");
         },
         onCreate: (db, version) async {
           await db.execute('''
@@ -386,7 +387,7 @@ class LocalVaultRepository {
     // 2. Delete database file
     final factory = (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS) 
         ? databaseFactoryFfi 
-        : databaseFactory;
+        : sqlcipher.databaseFactory;
     final dbPath = await factory.getDatabasesPath();
     final path = p.join(dbPath, 'vault.db');
     

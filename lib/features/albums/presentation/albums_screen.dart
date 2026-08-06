@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../state/albums_notifier.dart';
 import '../domain/album.dart';
 import '../../../core/presentation/responsive_config.dart';
-import '../../../core/presentation/components/custom_app_bar.dart';
+import '../../../core/presentation/components/vault_hero_header.dart';
 import '../../../core/presentation/components/album_card.dart';
 import '../../../core/presentation/components/skeleton_grid.dart';
 import '../../../core/theme/app_theme.dart';
@@ -103,29 +103,37 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   Widget build(BuildContext context) {
     final albumsAsync = ref.watch(albumsNotifierProvider);
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Albums',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showCreateAlbumDialog,
-          )
-        ],
-      ),
-      body: ResponsiveConfig.buildConstrainedBody(
-        child: albumsAsync.when(
+      body: ResponsiveConfig.buildFluidBody(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            VaultHeroHeader(
+              title: 'Albums',
+              subtitle: 'Organize your memories securely.',
+              onUploadPressed: _showCreateAlbumDialog,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: albumsAsync.when(
           loading: () => const SkeletonGrid(isAlbum: true),
           error: (error, stackTrace) => Center(child: Text('Error: $error')),
           data: (albums) => GridView.builder(
             padding: const EdgeInsets.all(16),
-            gridDelegate: ResponsiveConfig.getAlbumGridDelegate(),
-            cacheExtent: 1500.0,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.9,
+            ),
             itemCount: albums.length,
             itemBuilder: (context, index) {
               final album = albums[index];
               return _buildAlbumCard(context, ref, album);
             },
-          ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.syeds.itprotects"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -23,6 +23,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders += mapOf("appAuthRedirectScheme" to "com.syeds.itprotects")
     }
 
     buildTypes {

@@ -80,6 +80,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps.100219501471-7bq2p5l3j7vid9uuhr6e3ab4dgf3u7mh</string>
+				<string>com.syeds.itprotects</string>
 			</array>
 		</dict>
 	</array>

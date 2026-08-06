@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -102,8 +103,25 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     });
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.backspace) {
+              _onDelete();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+              if (_pin.length == 6) _verifyPin();
+              return KeyEventResult.handled;
+            } else if (event.character != null && RegExp(r'^[0-9]$').hasMatch(event.character!)) {
+              _onKeyPress(event.character!);
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: SafeArea(
+          child: Column(
           children: [
             const Spacer(),
             Text(
@@ -151,6 +169,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
       ),
     );
   }

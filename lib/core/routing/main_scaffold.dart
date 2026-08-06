@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/state/auth_notifier.dart';
+import '../presentation/components/desktop_sidebar.dart';
 
 class MainScaffold extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -18,42 +19,7 @@ class MainScaffold extends ConsumerWidget {
           return Scaffold(
             body: Row(
               children: [
-                NavigationRail(
-                  selectedIndex: navigationShell.currentIndex,
-                  onDestinationSelected: (index) {
-                    if (index == 3) {
-                      ref.read(authNotifierProvider.notifier).lockVault();
-                    } else {
-                      navigationShell.goBranch(
-                        index,
-                        initialLocation: index == navigationShell.currentIndex,
-                      );
-                    }
-                  },
-                  labelType: NavigationRailLabelType.all,
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.shield_outlined),
-                      selectedIcon: Icon(Icons.shield),
-                      label: Text('Vault'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.photo_album_outlined),
-                      selectedIcon: Icon(Icons.photo_album),
-                      label: Text('Albums'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.settings_outlined),
-                      selectedIcon: Icon(Icons.settings),
-                      label: Text('Settings'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.lock_outline, color: Colors.redAccent),
-                      label: Text('Lock', style: TextStyle(color: Colors.redAccent)),
-                    ),
-                  ],
-                ),
-                const VerticalDivider(thickness: 1, width: 1),
+                DesktopSidebar(navigationShell: navigationShell),
                 Expanded(child: navigationShell),
               ],
             ),

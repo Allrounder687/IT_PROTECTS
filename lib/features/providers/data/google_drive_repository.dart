@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:convert';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/auth_io.dart' as auth_io;
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../domain/storage_provider.dart';
 
 class GoogleAuthClient extends http.BaseClient {
@@ -24,11 +26,15 @@ class GoogleDriveRepository implements StorageProvider {
   String get providerId => 'google_drive';
   
   drive.DriveApi? _driveApi;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   late final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: Platform.isIOS 
-        ? '100219501471-7bq2p5l3j7vid9uuhr' '6e3ab4dgf3u7mh.apps.googleusercontent.com'
-        : '100219501471-pdbjgh1bd7dhnolok' 'plmdhld0aqvoa5e.apps.googleusercontent.com',
+        ? '100219501471-7bq2p5l3j7vid9uuhr6e3ab4dgf3u7mh.apps.googleusercontent.com'
+        : '100219501471-pdbjgh1bd7dhnolokplmdhld0aqvoa5e.apps.googleusercontent.com',
+    serverClientId: Platform.isAndroid 
+        ? '100219501471-pdbjgh1bd7dhnolokplmdhld0aqvoa5e.apps.googleusercontent.com' 
+        : null,
     scopes: [drive.DriveApi.driveAppdataScope],
   );
 
@@ -72,6 +78,18 @@ class GoogleDriveRepository implements StorageProvider {
             }
           },
         );
+        
+        // Save credentials
+        final creds = _desktopClient!.credentials;
+        final jsonStr = jsonEncode({
+          'accessToken': creds.accessToken.data,
+          'type': creds.accessToken.type,
+          'expiry': creds.accessToken.expiry.toIso8601String(),
+          'refreshToken': creds.refreshToken,
+          'scopes': creds.scopes,
+        });
+        await _secureStorage.write(key: 'google_drive_credentials', value: jsonStr);
+        
         _driveApi = drive.DriveApi(_desktopClient!);
       } catch (e) {
         client.close();
@@ -95,9 +113,28 @@ class GoogleDriveRepository implements StorageProvider {
         return false;
       }
     } else {
-      // For desktop/TV, we would ideally read saved credentials from secure storage.
-      // Since we haven't implemented token persistence for desktop yet, we return false to force re-auth.
-      return _desktopClient != null;
+      if (_desktopClient != null) return true;
+      
+      final savedCredsStr = await _secureStorage.read(key: 'google_drive_credentials');
+      if (savedCredsStr != null) {
+        try {
+          final map = jsonDecode(savedCredsStr);
+          final credentials = auth_io.AccessCredentials(
+            auth_io.AccessToken(map['type'], map['accessToken'], DateTime.parse(map['expiry']).toUtc()),
+            map['refreshToken'],
+            List<String>.from(map['scopes']),
+          );
+          
+          final clientId = Platform.isWindows ? _desktopClientId : _tvClientId;
+          _desktopClient = auth_io.autoRefreshingClient(clientId, credentials, http.Client());
+          _driveApi = drive.DriveApi(_desktopClient!);
+          return true;
+        } catch (_) {
+          await _secureStorage.delete(key: 'google_drive_credentials');
+          return false;
+        }
+      }
+      return false;
     }
   }
 
