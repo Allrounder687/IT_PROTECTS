@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../vault/domain/encryption_use_case.dart';
 import '../../vault/domain/vault_item_entity.dart';
-import '../../auth/data/auth_repository.dart';
+import '../../../core/providers/session_provider.dart';
 
 final decryptedItemProvider = AsyncNotifierProvider.family.autoDispose<ViewerAsyncNotifier, Uint8List, VaultItemEntity>(ViewerAsyncNotifier.new);
 
@@ -16,9 +16,8 @@ class ViewerAsyncNotifier extends AutoDisposeFamilyAsyncNotifier<Uint8List, Vaul
     final encryptedBytes = await file.readAsBytes();
     
     final encUseCase = ref.read(encryptionUseCaseProvider);
-    final authRepo = ref.read(authRepositoryProvider);
 
-    final masterKeyBytes = await authRepo.getMasterKey();
+    final masterKeyBytes = ref.read(sessionProvider);
     if (masterKeyBytes == null) throw Exception("Master key not found");
     
     final masterKey = await encUseCase.importMasterKey(masterKeyBytes);

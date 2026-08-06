@@ -4,10 +4,12 @@ import 'package:uuid/uuid.dart';
 import '../data/local_vault_repository.dart';
 import '../domain/encryption_use_case.dart';
 import '../domain/vault_item_entity.dart';
-import '../../auth/data/auth_repository.dart';
 import '../../providers/domain/sync_job.dart';
 import '../../settings/state/settings_providers.dart';
 import '../../providers/state/sync_status_notifier.dart';
+import '../../../core/providers/session_provider.dart';
+
+import '../domain/migration_use_case.dart';
 
 final vaultListProvider = AsyncNotifierProvider.autoDispose<VaultAsyncNotifier, List<VaultItemEntity>>(VaultAsyncNotifier.new);
 
@@ -17,6 +19,9 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
 
   @override
   Future<List<VaultItemEntity>> build() async {
+    final migration = ref.read(migrationUseCaseProvider);
+    await migration.migrateOldImages();
+
     final localRepo = ref.read(localVaultRepositoryProvider);
     return await localRepo.getMediaItems();
   }
@@ -27,11 +32,10 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
 
     final bytes = await image.readAsBytes();
     final encUseCase = ref.read(encryptionUseCaseProvider);
-    final authRepo = ref.read(authRepositoryProvider);
     final localRepo = ref.read(localVaultRepositoryProvider);
 
-    final masterKeyBytes = await authRepo.getMasterKey();
-    if (masterKeyBytes == null) throw Exception("Master key not found in storage");
+    final masterKeyBytes = ref.read(sessionProvider);
+    if (masterKeyBytes == null) throw Exception("Master key not found in session");
     final masterKey = await encUseCase.importMasterKey(masterKeyBytes);
 
     final encryptionResult = await encUseCase.encryptDataWithCek(bytes.toList(), masterKey);

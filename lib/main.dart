@@ -35,12 +35,14 @@ class ItProtectsApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+    
     return LifecycleCleanupManager(
       child: MaterialApp.router(
         title: 'IT PROTECTS',
         theme: AppTheme.darkTheme,
         themeMode: ThemeMode.dark,
-        routerConfig: appRouter,
+        routerConfig: router,
         debugShowCheckedModeBanner: false,
       ),
     );

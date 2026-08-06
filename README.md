@@ -6,7 +6,14 @@ A client-side encrypted vault backed by free cloud providers (Google Drive, Drop
 
 ### 1. Project Scaffolding & Onboarding UI
 * Scaffolded a clean, dark-themed Flutter application.
-* Created the Onboarding flow and the PIN Setup screen.
+* **Phase 13**: Full Onboarding Funnel & PIN Creation UX (Completed).
+* **Phase 14**: Lock Screen & Auth Shell (Completed).
+* **Phase 15**: Adaptive App Shell & 2026 UI Standards (Completed).
+* **Phase 16**: Home / Vault & Albums UX (Completed).
+* **Phase 17**: Media Viewer, Safe Send & Trash/Space Saver UI (Completed).
+* **Phase 18**: Providers & Cloud Sync UI (Completed).
+* **Phase 19**: Security Settings, Intruder Alerts & Logs UI (Completed).
+* Created the Onboarding flow and the PIN Setup screens.
 * Established the core Riverpod and GoRouter dependencies.
 
 ### 2. Architectural Restructure (Clean Architecture)

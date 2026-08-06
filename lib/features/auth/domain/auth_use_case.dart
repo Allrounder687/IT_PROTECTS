@@ -13,16 +13,37 @@ class AuthUseCase {
     parallelism: 2,
     hashLength: 32, 
   );
+  final _aesGcm = AesGcm.with256bits();
 
-  Future<SecretKey> deriveMasterKey(String pin, List<int> salt) async {
+  Future<SecretKey> deriveKek(String pin, List<int> salt) async {
     return await _argon2.deriveKeyFromPassword(
       password: pin,
       nonce: salt,
     );
   }
 
+  Future<List<int>> generateRandomKey() async {
+    final key = await _aesGcm.newSecretKey();
+    return await key.extractBytes();
+  }
+
+  Future<String> wrapMasterKey(List<int> masterKeyBytes, SecretKey kek) async {
+    final box = await _aesGcm.encrypt(masterKeyBytes, secretKey: kek);
+    return base64Encode(box.concatenation());
+  }
+
+  Future<List<int>> unwrapMasterKey(String wrappedKey, SecretKey kek) async {
+    final blob = base64Decode(wrappedKey);
+    final box = SecretBox.fromConcatenation(
+      blob,
+      nonceLength: _aesGcm.nonceLength,
+      macLength: _aesGcm.macAlgorithm.macLength,
+    );
+    return await _aesGcm.decrypt(box, secretKey: kek);
+  }
+
   Future<String> hashPin(String pin, List<int> salt) async {
-    final key = await deriveMasterKey(pin, salt);
+    final key = await deriveKek(pin, salt);
     final bytes = await key.extractBytes();
     return base64Encode(bytes);
   }

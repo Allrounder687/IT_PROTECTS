@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../state/auth_notifier.dart';
-import '../data/auth_repository.dart';
-
-final hasPinProvider = FutureProvider<bool>((ref) async {
-  final repo = ref.read(authRepositoryProvider);
-  final pinHash = await repo.getPinHash();
-  return pinHash != null;
-});
+import '../../settings/state/settings_providers.dart';
+import 'onboarding_screen.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
   const PinScreen({super.key});
@@ -19,120 +15,147 @@ class PinScreen extends ConsumerStatefulWidget {
 
 class _PinScreenState extends ConsumerState<PinScreen> {
   String _pin = '';
-  String? _firstPin; // Used for confirm pin step
+  bool _isError = false;
+  double _shakeKey = 0.0;
 
   void _onKeyPress(String key) {
+    if (_isError) {
+      setState(() {
+        _isError = false;
+        _pin = '';
+      });
+    }
+
     setState(() {
-      if (_pin.length < 4) _pin += key;
+      if (_pin.length < 6) _pin += key;
     });
+
+    if (_pin.length == 6) {
+      _verifyPin();
+    }
   }
 
   void _onDelete() {
     setState(() {
       if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
+      _isError = false;
     });
   }
 
-  void _onContinue(bool hasPin) {
-    if (_pin.length == 4) {
-      if (hasPin) {
-        // Unlock existing
-        ref.read(authNotifierProvider.notifier).unlockVault(_pin);
-      } else {
-        // Setup flow
-        if (_firstPin == null) {
-          // First time they entered 4 digits
-          setState(() {
-            _firstPin = _pin;
-            _pin = '';
-          });
-        } else {
-          // Confirming
-          if (_pin == _firstPin) {
-            ref.read(authNotifierProvider.notifier).unlockVault(_pin);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('PINs do not match. Try again.')),
-            );
-            setState(() {
-              _firstPin = null;
-              _pin = '';
-            });
-          }
-        }
-      }
-    }
+  void _verifyPin() {
+    ref.read(authNotifierProvider.notifier).unlockVault(_pin);
+  }
+
+  void _triggerShake() {
+    setState(() {
+      _isError = true;
+      _shakeKey += 1.0;
+    });
+  }
+
+  void _showForgotPinDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Forgot PIN?'),
+        content: const Text(
+          'IT PROTECTS uses zero-knowledge encryption. We do not have your PIN, so we cannot recover it for you.\n\n'
+          'If you cannot remember your PIN, you must completely reset your vault, which will permanently delete all encrypted files.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              ref.read(authNotifierProvider.notifier).resetVault().then((_) {
+                if (context.mounted) {
+                  // Invalidate the provider so OnboardingScreen knows the PIN is gone
+                  ref.invalidate(hasPinProvider);
+                  context.go('/');
+                }
+              });
+            },
+            child: const Text('Reset Vault', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final hasPinAsync = ref.watch(hasPinProvider);
+    final securitySettings = ref.watch(securitySettingsProvider);
     
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next == AuthState.unlocked) {
         context.go('/vault');
       } else if (next == AuthState.error) {
+        _triggerShake();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to unlock vault')),
+          const SnackBar(content: Text('Incorrect PIN')),
         );
-        setState(() {
-          _pin = '';
-        });
       }
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: hasPinAsync.when(
-          data: (hasPin) => Text(hasPin ? 'Enter PIN' : 'Create PIN'),
-          loading: () => const Text('Secure Vault'),
-          error: (_, __) => const Text('Error'),
-        ),
-      ),
-      body: hasPinAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error: $e')),
-        data: (hasPin) => Column(
+      body: SafeArea(
+        child: Column(
           children: [
-            const SizedBox(height: 48),
+            const Spacer(),
             Text(
-              hasPin 
-                ? 'Secure your vault'
-                : (_firstPin == null ? 'Create a 4-digit PIN' : 'Confirm your 4-digit PIN'),
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+              'Enter PIN for IT PROTECTS',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+            ).animate(key: ValueKey(_shakeKey))
+              .shake(hz: 8, curve: Curves.easeInOut),
             const SizedBox(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
+              children: List.generate(6, (index) {
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: index < _pin.length
-                        ? Theme.of(context).primaryColor
+                        ? (_isError ? Colors.redAccent : Theme.of(context).primaryColor)
                         : Colors.transparent,
                     border: Border.all(
-                      color: Theme.of(context).primaryColor,
+                      color: _isError ? Colors.redAccent : Theme.of(context).primaryColor,
                       width: 2,
                     ),
                   ),
                 );
               }),
-            ),
+            ).animate(key: ValueKey(_shakeKey + 1))
+              .shakeX(hz: 8, curve: Curves.easeInOut),
+            const SizedBox(height: 16),
+            if (securitySettings.biometricEnabled)
+              IconButton(
+                icon: const Icon(Icons.fingerprint, size: 40, color: Colors.greenAccent),
+                onPressed: () {
+                  ref.read(authNotifierProvider.notifier).unlockWithBiometrics();
+                },
+              ),
             const Spacer(),
-            _buildNumberPad(authState == AuthState.authenticating, hasPin),
-            const SizedBox(height: 48),
+            _buildNumberPad(authState == AuthState.authenticating),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _showForgotPinDialog,
+              child: const Text('Forgot PIN?', style: TextStyle(color: Colors.grey)),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNumberPad(bool isLoading, bool hasPin) {
+  Widget _buildNumberPad(bool isLoading) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
@@ -161,8 +184,8 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                   ? const CircularProgressIndicator()
                   : _buildActionKey(
                       icon: Icons.check,
-                      onPressed: _pin.length == 4 ? () => _onContinue(hasPin) : null,
-                      color: _pin.length == 4 ? Theme.of(context).primaryColor : Colors.grey,
+                      onPressed: _pin.length == 6 ? _verifyPin : null,
+                      color: _pin.length == 6 ? Theme.of(context).primaryColor : Colors.grey,
                     ),
             ],
           ),

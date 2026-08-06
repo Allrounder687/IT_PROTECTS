@@ -38,7 +38,7 @@ dependencies:
   go_router: ^17.4.0
   google_fonts: ^8.2.1
   cryptography: ^2.9.0
-  flutter_secure_storage: ^11.0.0
+  flutter_secure_storage: ^9.2.4
   local_auth: ^3.0.2
   sqflite_sqlcipher: ^3.4.1
   path_provider: ^2.1.6
@@ -54,9 +54,14 @@ dependencies:
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
-  syncfusion_flutter_pdfviewer: ^34.2.2
+  syncfusion_flutter_pdfviewer: 31.1.21
   sqflite_common_ffi: ^2.4.2
   sqlcipher_flutter_libs: ^0.7.0+eol
+  biometric_storage: ^5.0.1
+  sensors_plus: ^7.1.0
+  package_info_plus: 8.1.0
+  riverpod_annotation: ^2.6.1
+  timeago: ^3.7.1
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +73,26 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  golden_toolkit: ^0.15.0
+  flutter_launcher_icons: ^0.14.2
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icon.png"
+    background_color: "#ffffff"
+    theme_color: "#ffffff"
+  windows:
+    generate: true
+    image_path: "assets/icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -110,3 +135,5 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+

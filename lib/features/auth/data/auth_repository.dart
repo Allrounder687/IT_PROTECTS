@@ -13,20 +13,32 @@ class AuthRepository {
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
-  static const _keyMasterKey = 'master_key';
+  static const _keyMasterKey = 'wrapped_master_key';
+  static const _keyDecoyMasterKey = 'wrapped_decoy_master_key';
   static const _keyDbKey = 'db_key';
   static const _keySalt = 'crypto_salt';
   static const _keyDecoySalt = 'crypto_decoy_salt';
 
-  Future<void> saveMasterKey(List<int> masterKeyBytes) async {
-    final base64Key = base64Encode(masterKeyBytes);
-    await _storage.write(key: _keyMasterKey, value: base64Key);
+  Future<void> saveWrappedMasterKey(String wrappedKey) async {
+    await _storage.write(key: _keyMasterKey, value: wrappedKey);
   }
 
-  Future<List<int>?> getMasterKey() async {
-    final base64Key = await _storage.read(key: _keyMasterKey);
+  Future<String?> getWrappedMasterKey() async {
+    return await _storage.read(key: _keyMasterKey);
+  }
+
+  Future<List<int>?> getOldMasterKey() async {
+    final base64Key = await _storage.read(key: 'master_key');
     if (base64Key == null) return null;
     return base64Decode(base64Key);
+  }
+
+  Future<void> saveWrappedDecoyMasterKey(String wrappedKey) async {
+    await _storage.write(key: _keyDecoyMasterKey, value: wrappedKey);
+  }
+
+  Future<String?> getWrappedDecoyMasterKey() async {
+    return await _storage.read(key: _keyDecoyMasterKey);
   }
 
   Future<String> getOrGenerateDatabaseKey() async {
@@ -80,5 +92,17 @@ class AuthRepository {
 
   Future<String?> getDecoyPinHash() async {
     return await _storage.read(key: _keyDecoyPinHash);
+  }
+
+  Future<void> clearAll() async {
+    final keys = [
+      _keyPinHash, _keyDecoyPinHash, _keyMasterKey, 
+      _keyDecoyMasterKey, _keyDbKey, _keySalt, _keyDecoySalt
+    ];
+    for (final key in keys) {
+      try {
+        await _storage.delete(key: key);
+      } catch (_) {}
+    }
   }
 }

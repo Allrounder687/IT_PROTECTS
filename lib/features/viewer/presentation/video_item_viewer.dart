@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../vault/domain/vault_item_entity.dart';
 import '../state/media_viewer_state.dart';
 
 class VideoItemViewer extends ConsumerStatefulWidget {
   final VaultItemEntity item;
   final bool showHud;
+  final bool isSafeSend;
 
-  const VideoItemViewer({super.key, required this.item, required this.showHud});
+  const VideoItemViewer({
+    super.key, 
+    required this.item, 
+    required this.showHud,
+    this.isSafeSend = false,
+  });
 
   @override
   ConsumerState<VideoItemViewer> createState() => _VideoItemViewerState();
@@ -19,6 +26,7 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
   late final Player player = Player();
   late final VideoController controller = VideoController(player);
   bool _isInitialized = false;
+  bool _isMuted = false;
 
   @override
   void initState() {
@@ -29,6 +37,13 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
   void dispose() {
     player.dispose();
     super.dispose();
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+      player.setVolume(_isMuted ? 0.0 : 100.0);
+    });
   }
 
   String _formatDuration(Duration d) {
@@ -57,14 +72,43 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
             Center(
               child: Video(controller: controller),
             ),
+            
+            // Safe Send Badge
+            if (widget.isSafeSend && widget.showHud)
+              Positioned(
+                top: 80, // below main app bar
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withAlpha(200),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.timer, color: Colors.white),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Safe Send: Sent to user@example.com (visible for 14:59)',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().fade().slideY(begin: -0.5, end: 0),
+              ),
+
+            // Video Controls HUD
             if (widget.showHud)
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
                 child: Container(
-                  height: 80,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  height: 100, // accommodate safe send bottom bar if needed, but let's keep it 100
+                  padding: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.transparent, Colors.black87],
@@ -73,6 +117,7 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
                     ),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       StreamBuilder<bool>(
                         stream: player.stream.playing,
@@ -89,6 +134,10 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
                             },
                           );
                         },
+                      ),
+                      IconButton(
+                        icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up, color: Colors.white),
+                        onPressed: _toggleMute,
                       ),
                       Expanded(
                         child: StreamBuilder<Duration>(

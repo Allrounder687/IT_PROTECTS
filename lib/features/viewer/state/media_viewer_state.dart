@@ -2,12 +2,11 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../vault/domain/vault_item_entity.dart';
 import '../data/temporary_file_manager.dart';
-import '../../auth/data/auth_repository.dart';
 import '../../vault/domain/encryption_use_case.dart';
+import '../../../core/providers/session_provider.dart';
 
 final playbackSessionProvider = FutureProvider.family.autoDispose<SecurePlaybackSession, VaultItemEntity>((ref, item) async {
   final tempManager = ref.read(temporaryFileManagerProvider);
-  final authRepo = ref.read(authRepositoryProvider);
   final encUseCase = ref.read(encryptionUseCaseProvider);
   
   // Extension extraction
@@ -25,9 +24,9 @@ final playbackSessionProvider = FutureProvider.family.autoDispose<SecurePlayback
     final encryptedBytes = await encryptedFile.readAsBytes();
 
     // 2. Fetch Master Key
-    final masterKeyBytes = await authRepo.getMasterKey();
+    final masterKeyBytes = ref.read(sessionProvider);
     if (masterKeyBytes == null) {
-      throw Exception("Master key not available in secure storage");
+      throw Exception("Master key not available in session");
     }
     final masterKey = await encUseCase.importMasterKey(masterKeyBytes);
 

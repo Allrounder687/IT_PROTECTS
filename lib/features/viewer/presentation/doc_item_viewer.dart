@@ -1,32 +1,59 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../vault/domain/vault_item_entity.dart';
 import '../state/media_viewer_state.dart';
 
-class DocItemViewer extends ConsumerWidget {
+class DocItemViewer extends ConsumerStatefulWidget {
   final VaultItemEntity item;
 
   const DocItemViewer({super.key, required this.item});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessionState = ref.watch(playbackSessionProvider(item));
+  ConsumerState<DocItemViewer> createState() => _DocItemViewerState();
+}
+
+class _DocItemViewerState extends ConsumerState<DocItemViewer> {
+  final PdfViewerController _pdfViewerController = PdfViewerController();
+  final GlobalKey<SfPdfViewerState> _pdfViewerKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionState = ref.watch(playbackSessionProvider(widget.item));
 
     return Center(
       child: sessionState.when(
         data: (session) {
-          // Syncfusion SfPdfViewer supports File natively
-          // return SfPdfViewer.file(session.file);
+          if (widget.item.originalName.endsWith('.txt')) {
+             return _buildTextEditor(session.file);
+          }
           
-          return Container(
-             color: Colors.white,
-             child: const Center(
-               child: Text('PDF Decrypted and Rendered Here', style: TextStyle(color: Colors.black)),
-             ),
+          return SfPdfViewer.file(
+            session.file,
+            key: _pdfViewerKey,
+            controller: _pdfViewerController,
+            canShowScrollHead: true,
+            canShowScrollStatus: true,
           );
         },
         loading: () => const CircularProgressIndicator(),
         error: (e, st) => Text('Error loading doc: $e', style: const TextStyle(color: Colors.red)),
+      ),
+    );
+  }
+  
+  Widget _buildTextEditor(File file) {
+    // A simple mock for the encrypted text editor
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: const TextField(
+        maxLines: null,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: 'Start typing your secure note...',
+        ),
       ),
     );
   }

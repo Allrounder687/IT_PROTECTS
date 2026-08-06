@@ -39,6 +39,12 @@ class SecuritySettingsNotifier extends Notifier<SecuritySettings> {
     await prefs.setBool('sec_intruder_photos', enabled);
     state = state.copyWith(intruderPhotosEnabled: enabled);
   }
+
+  Future<void> toggleFaceDownLock(bool enabled) async {
+    final prefs = ref.read(prefsProvider);
+    await prefs.setBool('sec_face_down', enabled);
+    state = state.copyWith(faceDownLockEnabled: enabled);
+  }
 }
 
 final cloudSyncSettingsProvider = NotifierProvider<CloudSyncSettingsNotifier, CloudSyncSettings>(

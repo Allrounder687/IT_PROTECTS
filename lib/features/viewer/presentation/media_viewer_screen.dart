@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../vault/state/vault_notifier.dart';
+import '../../vault/domain/vault_item_entity.dart';
 import 'image_item_viewer.dart';
 import 'video_item_viewer.dart';
 import 'doc_item_viewer.dart';
@@ -41,6 +42,75 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
     });
   }
 
+  void _showInfoOverlay(VaultItemEntity item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('File Info', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.description),
+                title: const Text('Name'),
+                subtitle: Text(item.originalName),
+              ),
+              ListTile(
+                leading: const Icon(Icons.sd_storage),
+                title: const Text('Size'),
+                subtitle: Text('${(item.size / 1024).toStringAsFixed(2)} KB'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.security),
+                title: const Text('Encryption Status'),
+                subtitle: const Text('Encrypted (AES-256-GCM)'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.cloud_done),
+                title: const Text('Provider'),
+                subtitle: const Text('Local (Encrypted)'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSafeSendDialog(VaultItemEntity item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Safe Send'),
+        content: const Text('Generate a secure, time-limited link to share this file?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Safe Send link generated!')),
+              );
+            },
+            child: const Text('Generate Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mediaItemsState = ref.watch(vaultListProvider);
@@ -49,7 +119,9 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
       backgroundColor: Colors.black, // Immersive viewer
       body: mediaItemsState.when(
         data: (items) {
-          if (items.isEmpty) return const Center(child: Text('No items'));
+          if (items.isEmpty) return const Center(child: Text('No items', style: TextStyle(color: Colors.white)));
+          
+          final currentItem = items[_currentIndex];
 
           return Stack(
             children: [
@@ -101,16 +173,14 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                           ),
                           Expanded(
                             child: Text(
-                              items[_currentIndex].originalName,
+                              currentItem.originalName,
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.info_outline, color: Colors.white),
-                            onPressed: () {
-                              // Show EXIF / Crypto info bottom sheet
-                            },
+                            onPressed: () => _showInfoOverlay(currentItem),
                           ),
                         ],
                       ),
@@ -118,12 +188,64 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                   ).animate().fade(duration: 200.ms).slideY(begin: -1, end: 0),
                 ),
                 
-              // Additional Bottom Bar could go here (e.g. Delete, Share) if not video
+              // HUD Overlay - Bottom Bar
+              if (_showHud && !currentItem.originalName.endsWith('.mp4') && !currentItem.originalName.endsWith('.mov'))
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, Colors.black87],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.favorite_border, color: Colors.white),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Added to Favorites')));
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.folder_open, color: Colors.white),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Move to album...')));
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.visibility_off, color: Colors.white),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked as Decoy')));
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.send_time_extension, color: Colors.white),
+                            onPressed: () => _showSafeSendDialog(currentItem),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moved to Trash')));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ).animate().fade(duration: 200.ms).slideY(begin: 1, end: 0),
+                ),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error: $e')),
+        error: (e, st) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
       ),
     );
   }

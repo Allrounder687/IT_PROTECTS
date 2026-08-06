@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Design Tokens (2026 Style)
@@ -12,6 +13,8 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF94A3B8); // Slate 400
 
   static ThemeData get darkTheme {
+    final baseTextTheme = Typography.material2021().white;
+    
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -35,12 +38,12 @@ class AppTheme {
         ),
         iconTheme: IconThemeData(color: textPrimary),
       ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(color: textPrimary, fontSize: 48, fontWeight: FontWeight.bold, letterSpacing: -0.5),
-        headlineMedium: TextStyle(color: textPrimary, fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.5),
-        titleLarge: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w500),
-        bodyLarge: TextStyle(color: textSecondary, fontSize: 16, height: 1.5),
-        labelLarge: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+      textTheme: GoogleFonts.outfitTextTheme(baseTextTheme).copyWith(
+        displayLarge: GoogleFonts.outfit(textStyle: const TextStyle(color: textPrimary, fontSize: 48, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+        headlineMedium: GoogleFonts.outfit(textStyle: const TextStyle(color: textPrimary, fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.5)),
+        titleLarge: GoogleFonts.outfit(textStyle: const TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w500)),
+        bodyLarge: GoogleFonts.outfit(textStyle: const TextStyle(color: textSecondary, fontSize: 16, height: 1.5)),
+        labelLarge: GoogleFonts.outfit(textStyle: const TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
