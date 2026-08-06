@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added (Phase 7 - Media Viewer System)
+- Initialized `media_kit` for hardware-accelerated cross-platform secure video playback.
+- Initialized `syncfusion_flutter_pdfviewer` for secure multi-platform document viewing.
+- Created `MediaViewerScreen` with `PageView.builder` for seamless swiping between items.
+- Built a modular viewer system: `ImageItemViewer` (Pinch-to-zoom), `VideoItemViewer` (Timeline/Scrubber mock), and `DocItemViewer` (Syncfusion PDF skeleton).
+- Developed `fullMediaProvider` showcasing an asynchronous in-memory LRU caching architecture for high-resolution decrypted blobs.
+
 ### Added (Phase 6 - UI/UX Design System 2026)
 - Created 2026-style Material Design 3 theme with Slate & Indigo color palette (`app_theme.dart`).
 - Migrated navigation to `StatefulShellRoute` with a responsive bottom navigation bar.

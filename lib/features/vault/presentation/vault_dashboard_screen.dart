@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../state/vault_notifier.dart';
 import '../../providers/state/sync_status_notifier.dart';
@@ -98,10 +99,13 @@ class VaultDashboardScreen extends ConsumerWidget {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: EncryptedGridWidget(
-                        item: item,
+                    return GestureDetector(
+                      onTap: () => context.push('/viewer/$index'),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: EncryptedGridWidget(
+                          item: item,
+                        ),
                       ),
                     ).animate().fade(delay: (index * 50).ms, duration: 300.ms).slideY(begin: 0.1, end: 0);
                   },
