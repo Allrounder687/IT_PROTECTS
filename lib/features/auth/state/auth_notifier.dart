@@ -47,14 +47,14 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       
       await controller.initialize();
-      final image = await controller.takePicture();
+      await controller.takePicture();
       await controller.dispose();
       
       // The image is saved to a temporary directory. 
       // In a full implementation, we'd save this path to the DB's intrusion_logs table.
-      print('Intruder snapshot saved to: ${image.path}');
+      // logger.info('Intruder snapshot saved to: ${image.path}');
     } catch (e) {
-      print('Failed to take intruder snapshot: $e');
+      // logger.error('Failed to take intruder snapshot: $e');
     }
   }
 }

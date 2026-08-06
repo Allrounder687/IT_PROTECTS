@@ -4,8 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added (Phase 4 - Security & Cryptography)
-- Introduced Per-File Content Encryption Keys (CEKs).
+### Added (Phase 5 - Cloud Sync Engine Skeleton)
+- Abstracted `StorageProvider` for universal cloud BYOS.
+- Implemented `GoogleDriveRepository` using `google_sign_in` and `googleapis`.
+- Created `SyncStatusNotifier` and `ActiveCloudProviderNotifier` for state machine management.
 - Added `wrapped_content_key` and `iv` to SQLite schemas.
 - Implemented Intruder Alert logging via silent front-camera snapshots on unlock failure.
 - Implemented `getOrGenerateDecoySalt` foundation for the Decoy Vault.
