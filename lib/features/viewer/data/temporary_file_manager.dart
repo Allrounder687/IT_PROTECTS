@@ -70,4 +70,20 @@ class TemporaryFileManager {
       await file.delete();
     }
   }
+
+  Future<void> wipeAll() async {
+    final dir = await getTemporaryDirectory();
+    if (await dir.exists()) {
+      try {
+        final files = dir.listSync();
+        for (final entity in files) {
+          if (entity is File) {
+            await deleteFile(entity);
+          }
+        }
+      } catch (e) {
+        // Ignore errors during mass cleanup
+      }
+    }
+  }
 }

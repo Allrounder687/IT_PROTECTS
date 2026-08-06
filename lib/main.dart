@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routing/app_router.dart';
+import 'core/security/lifecycle_cleanup_manager.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,12 +20,14 @@ class ItProtectsApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp.router(
-      title: 'IT PROTECTS',
-      theme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
-      routerConfig: appRouter,
-      debugShowCheckedModeBanner: false,
+    return LifecycleCleanupManager(
+      child: MaterialApp.router(
+        title: 'IT PROTECTS',
+        theme: AppTheme.darkTheme,
+        themeMode: ThemeMode.dark,
+        routerConfig: appRouter,
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 }

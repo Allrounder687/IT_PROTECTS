@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (Phase 7.2 - Defensible Security & Lifecycle Cleanup)
+- **Zero Telemetry Policy:** Implemented `SecureLogger` to enforce zero analytic/console logging in Release mode, preventing metadata and crash dump leaks.
+- **Aggressive Lifecycle Purging:** Implemented `LifecycleCleanupManager` (`WidgetsBindingObserver`) that actively triggers a mass deletion of the temporary cache directory the moment the app enters the background, goes inactive, or detaches.
+- **Threat Model Reality:** Updated `security_design.md` to accurately reflect flash memory wear-leveling constraints and that the Master Key is stored wrapped on-disk rather than solely existing in the ether.
+
 ### Changed (Phase 7.1 - Secure Playback Sessions)
 - **Security Update:** Transitioned media decryption pipeline to `SecurePlaybackSession` temporary file management, circumventing in-memory limitations for `media_kit` and `syncfusion` while aggressively disposing files to minimize plaintext windows.
 - Refactored `VideoItemViewer`, `DocItemViewer`, and `ImageItemViewer` to mount secure local file URIs rather than byte arrays.
