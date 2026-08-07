@@ -79,51 +79,54 @@ void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEnti
 }
 
 void showMoveToAlbumDialog(BuildContext context, WidgetRef ref, VaultItemEntity item, int? currentAlbumId) {
-  final albumsAsync = ref.read(albumsNotifierProvider);
-  
   showDialog(
     context: context,
     builder: (context) {
-      return AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text('Move to Album'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: albumsAsync.when(
-            data: (albums) {
-              if (albums.isEmpty) return const Text('No albums available.');
-              return ListView.builder(
-                shrinkWrap: true,
-                itemCount: albums.length,
-                itemBuilder: (context, index) {
-                  final album = albums[index];
-                  return ListTile(
-                    title: Text(album.name),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final repo = ref.read(localVaultRepositoryProvider);
-                      await repo.moveItemToAlbum(item.id, album.id);
-                      ref.read(paginatedVaultProvider(currentAlbumId).notifier).refresh();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Moved to ${album.name}')),
-                        );
-                      }
+      return Consumer(
+        builder: (context, ref, child) {
+          final albumsAsync = ref.watch(albumsNotifierProvider);
+          return AlertDialog(
+            backgroundColor: AppTheme.surface,
+            title: const Text('Move to Album'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: albumsAsync.when(
+                data: (albums) {
+                  if (albums.isEmpty) return const Text('No albums available.');
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: albums.length,
+                    itemBuilder: (context, index) {
+                      final album = albums[index];
+                      return ListTile(
+                        title: Text(album.name),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          final repo = ref.read(localVaultRepositoryProvider);
+                          await repo.moveItemToAlbum(item.id, album.id);
+                          ref.read(paginatedVaultProvider(currentAlbumId).notifier).refresh();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Moved to ${album.name}')),
+                            );
+                          }
+                        },
+                      );
                     },
                   );
                 },
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => Text('Error: $e'),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-        ],
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, st) => Text('Error: $e'),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+              ),
+            ],
+          );
+        },
       );
     },
   );
