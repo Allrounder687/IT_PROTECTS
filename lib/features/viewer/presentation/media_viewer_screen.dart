@@ -216,7 +216,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                             onPressed: () async {
                               final repo = ref.read(localVaultRepositoryProvider);
                               await repo.toggleFavourite(currentItem.id, !currentItem.isFavourite);
-                              ref.read(vaultListProvider.notifier).refresh();
+                              ref.invalidate(vaultListProvider);
                               ref.read(paginatedVaultProvider(null).notifier).refresh();
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(currentItem.isFavourite ? 'Removed from Favourites' : 'Added to Favourites')));
@@ -244,7 +244,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                             onPressed: () async {
                               final repo = ref.read(localVaultRepositoryProvider);
                               await repo.moveToTrash(currentItem.id);
-                              ref.read(vaultListProvider.notifier).refresh();
+                              ref.invalidate(vaultListProvider);
                               ref.read(paginatedVaultProvider(null).notifier).refresh();
                               if (context.mounted) {
                                 context.pop(); // Close viewer since item is gone
