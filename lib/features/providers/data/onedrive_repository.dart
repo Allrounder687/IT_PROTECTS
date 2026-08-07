@@ -82,8 +82,12 @@ class OneDriveRepository implements StorageProvider {
           throw Exception("Failed to exchange code: ${tokenResponse.body}");
         }
       } else {
-        final AuthorizationTokenResponse? result = await _appAuth.authorizeAndExchangeCode(
-          AuthorizationTokenRequest(
+        print('[OAuth Diagnostic - OneDrive] Starting authorization for $_clientId...');
+        final startTime = DateTime.now();
+        print('[OAuth Diagnostic - OneDrive] Redirect URI configured: $_redirectUrl');
+
+        final AuthorizationResponse? authResult = await _appAuth.authorize(
+          AuthorizationRequest(
             _clientId,
             _redirectUrl,
             serviceConfiguration: const AuthorizationServiceConfiguration(
@@ -94,11 +98,39 @@ class OneDriveRepository implements StorageProvider {
           ),
         );
 
-        if (result != null && result.accessToken != null) {
-          _accessToken = result.accessToken;
+        if (authResult == null) {
+          throw Exception("Authorization was cancelled or failed to return a response.");
+        }
+
+        print('[OAuth Diagnostic - OneDrive] Callback received at: ${DateTime.now().difference(startTime).inSeconds}s');
+        print('[OAuth Diagnostic - OneDrive] Auth Code present: ${authResult.authorizationCode != null}');
+
+        if (authResult.authorizationCode == null) {
+          throw Exception("Authorization callback did not contain a code.");
+        }
+
+        print('[OAuth Diagnostic - OneDrive] Proceeding to token exchange...');
+
+        final TokenResponse? tokenResult = await _appAuth.token(
+          TokenRequest(
+            _clientId,
+            _redirectUrl,
+            authorizationCode: authResult.authorizationCode,
+            codeVerifier: authResult.codeVerifier,
+            serviceConfiguration: const AuthorizationServiceConfiguration(
+              authorizationEndpoint: _authorizationEndpoint,
+              tokenEndpoint: _tokenEndpoint,
+            ),
+            scopes: ['Files.ReadWrite.AppFolder', 'offline_access'],
+          ),
+        );
+
+        if (tokenResult != null && tokenResult.accessToken != null) {
+          print('[OAuth Diagnostic - OneDrive] Token exchange successful.');
+          _accessToken = tokenResult.accessToken;
           await _secureStorage.write(key: 'onedrive_access_token', value: _accessToken);
         } else {
-          throw Exception("Failed to get OneDrive access token");
+          throw Exception("Failed to get OneDrive access token during code exchange.");
         }
       }
     } catch (e) {

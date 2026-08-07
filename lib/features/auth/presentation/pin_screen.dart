@@ -89,7 +89,6 @@ class _PinScreenState extends ConsumerState<PinScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final securitySettings = ref.watch(securitySettingsProvider);
     
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next == AuthState.unlocked) {
@@ -152,12 +151,29 @@ class _PinScreenState extends ConsumerState<PinScreen> {
             ).animate(key: ValueKey(_shakeKey + 1))
               .shakeX(hz: 8, curve: Curves.easeInOut),
             const SizedBox(height: 16),
-            if (securitySettings.biometricEnabled)
-              IconButton(
-                icon: const Icon(Icons.fingerprint, size: 40, color: Colors.greenAccent),
-                onPressed: () {
-                  ref.read(authNotifierProvider.notifier).unlockWithBiometrics();
-                },
+            // FORCED ON FOR DEBUGGING
+            // if (securitySettings.biometricEnabled)
+              Column(
+                children: [
+                  IconButton(
+                    iconSize: 56,
+                    padding: const EdgeInsets.all(24),
+                    icon: const Icon(Icons.fingerprint, color: Colors.greenAccent),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Button tapped, requesting prompt...'), duration: Duration(seconds: 1)),
+                      );
+                      ref.read(authNotifierProvider.notifier).unlockWithBiometrics();
+                    },
+                  ),
+                  if (ref.watch(biometricStatusProvider) != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      ref.watch(biometricStatusProvider)!,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ],
+                ],
               ),
             const Spacer(),
             _buildNumberPad(authState == AuthState.authenticating),
@@ -214,29 +230,33 @@ class _PinScreenState extends ConsumerState<PinScreen> {
   }
 
   Widget _buildKey(String value) {
-    return TextButton(
-      onPressed: () => _onKeyPress(value),
-      style: TextButton.styleFrom(
-        shape: const CircleBorder(),
-        padding: const EdgeInsets.all(24),
-        foregroundColor: Colors.white,
-      ),
-      child: Text(
-        value,
-        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _onKeyPress(value),
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: Center(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildActionKey({required IconData icon, required VoidCallback? onPressed, Color? color}) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        shape: const CircleBorder(),
-        padding: const EdgeInsets.all(24),
-        foregroundColor: color ?? Colors.white70,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: onPressed != null ? (_) => onPressed() : null,
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: Center(
+          child: Icon(icon, size: 28, color: color ?? Colors.white70),
+        ),
       ),
-      child: Icon(icon, size: 28),
     );
   }
 }

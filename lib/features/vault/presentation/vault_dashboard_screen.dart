@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../state/vault_notifier.dart';
 import '../../providers/state/sync_status_notifier.dart';
 import 'encrypted_grid_widget.dart';
+import 'vault_item_context_menu.dart';
 
 class VaultDashboardScreen extends ConsumerWidget {
   const VaultDashboardScreen({super.key});
@@ -101,6 +102,7 @@ class VaultDashboardScreen extends ConsumerWidget {
                     final item = items[index];
                     return GestureDetector(
                       onTap: () => context.push('/viewer/$index'),
+                      onLongPress: () => showVaultItemContextMenu(context, ref, item),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: EncryptedGridWidget(

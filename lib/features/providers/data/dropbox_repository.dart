@@ -84,23 +84,55 @@ class DropboxRepository implements StorageProvider {
           throw Exception("Failed to exchange code: ${tokenResponse.body}");
         }
       } else {
-        final AuthorizationTokenResponse? result = await _appAuth.authorizeAndExchangeCode(
-          AuthorizationTokenRequest(
+        print('[OAuth Diagnostic - Dropbox] Starting authorization for $_clientId...');
+        final startTime = DateTime.now();
+        print('[OAuth Diagnostic - Dropbox] Redirect URI configured: $_redirectUrl');
+
+        final AuthorizationResponse? authResult = await _appAuth.authorize(
+          AuthorizationRequest(
             _clientId,
             _redirectUrl,
             serviceConfiguration: const AuthorizationServiceConfiguration(
               authorizationEndpoint: _authorizationEndpoint,
               tokenEndpoint: _tokenEndpoint,
             ),
-            scopes: [], // Dropbox apps are usually scoped globally in console
+            scopes: [],
           ),
         );
 
-        if (result != null && result.accessToken != null) {
-          _accessToken = result.accessToken;
+        if (authResult == null) {
+          throw Exception("Authorization was cancelled or failed to return a response.");
+        }
+
+        print('[OAuth Diagnostic - Dropbox] Callback received at: ${DateTime.now().difference(startTime).inSeconds}s');
+        print('[OAuth Diagnostic - Dropbox] Auth Code present: ${authResult.authorizationCode != null}');
+        
+        if (authResult.authorizationCode == null) {
+          throw Exception("Authorization callback did not contain a code.");
+        }
+
+        print('[OAuth Diagnostic - Dropbox] Proceeding to token exchange...');
+        
+        final TokenResponse? tokenResult = await _appAuth.token(
+          TokenRequest(
+            _clientId,
+            _redirectUrl,
+            authorizationCode: authResult.authorizationCode,
+            codeVerifier: authResult.codeVerifier,
+            serviceConfiguration: const AuthorizationServiceConfiguration(
+              authorizationEndpoint: _authorizationEndpoint,
+              tokenEndpoint: _tokenEndpoint,
+            ),
+            scopes: [],
+          ),
+        );
+
+        if (tokenResult != null && tokenResult.accessToken != null) {
+          print('[OAuth Diagnostic - Dropbox] Token exchange successful.');
+          _accessToken = tokenResult.accessToken;
           await _secureStorage.write(key: 'dropbox_access_token', value: _accessToken);
         } else {
-          throw Exception("Failed to get Dropbox access token");
+          throw Exception("Failed to get Dropbox access token during code exchange.");
         }
       }
     } catch (e) {

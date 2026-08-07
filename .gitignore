@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+CREDENTIALS.md
+*.plist
+*.json
+*.txt
+*.png
+rewrite.py
+rewrite_db.py
+test_list.dart
+test_crypto.dart
+test_crypto2.dart

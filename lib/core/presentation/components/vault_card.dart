@@ -7,12 +7,14 @@ class VaultCard extends StatefulWidget {
   final VaultItemEntity item;
   final Widget? thumbnail;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const VaultCard({
     super.key,
     required this.item,
     this.thumbnail,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -29,6 +31,7 @@ class _VaultCardState extends State<VaultCard> {
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,

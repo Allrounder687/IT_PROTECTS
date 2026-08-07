@@ -10,6 +10,7 @@ import '../../../core/presentation/components/custom_app_bar.dart';
 import '../../../core/presentation/components/vault_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../state/albums_notifier.dart';
+import '../../vault/presentation/vault_item_context_menu.dart';
 
 class AlbumDetailScreen extends ConsumerStatefulWidget {
   final String albumId;
@@ -39,8 +40,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
 
   void _onScroll() {
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-      // TODO: Implement scoped pagination based on albumId
-      ref.read(paginatedVaultProvider.notifier).loadNextPage();
+      ref.read(paginatedVaultProvider(int.parse(widget.albumId)).notifier).loadNextPage();
     }
   }
 
@@ -76,9 +76,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                   onTap: () async {
                     Navigator.pop(context);
                     try {
-                      // Note: We might want to pass albumId to importPhoto in the future
-                      await ref.read(vaultListProvider.notifier).importPhoto();
-                      ref.read(paginatedVaultProvider.notifier).refresh();
+                      await ref.read(vaultListProvider.notifier).importPhoto(albumId: int.parse(widget.albumId));
+                      ref.read(paginatedVaultProvider(int.parse(widget.albumId)).notifier).refresh();
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,9 +97,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // For now we just use the global paginated provider as a mock. 
-    // In the future this should be scoped to the album ID.
-    final paginatedStateAsync = ref.watch(paginatedVaultProvider);
+    final paginatedStateAsync = ref.watch(paginatedVaultProvider(int.parse(widget.albumId)));
     final albums = ref.watch(albumsNotifierProvider).valueOrNull;
     final album = albums?.firstWhere((a) => a.id.toString() == widget.albumId);
 
@@ -152,6 +149,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                         item: item,
                         thumbnail: EncryptedGridWidget(item: item),
                         onTap: () => context.push('/viewer/$index'),
+                        onLongPress: () => showVaultItemContextMenu(context, ref, item, currentAlbumId: int.parse(widget.albumId)),
                       ).animate().fade(delay: ((index % 10) * 50).ms, duration: 300.ms).slideY(begin: 0.1, end: 0);
                     },
                   );

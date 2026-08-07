@@ -7,6 +7,7 @@ import '../../../core/presentation/responsive_config.dart';
 import '../../../core/presentation/components/custom_app_bar.dart';
 import '../../../core/presentation/components/settings_group_header.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/state/auth_notifier.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -40,7 +41,22 @@ class SettingsScreen extends ConsumerWidget {
               secondary: const Icon(Icons.fingerprint),
               title: const Text('Biometric unlock'),
               value: security.biometricEnabled,
-              onChanged: (v) => ref.read(securitySettingsProvider.notifier).toggleBiometric(v),
+              onChanged: (v) async {
+                if (v) {
+                  try {
+                    await ref.read(authNotifierProvider.notifier).enrollBiometrics();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to enable biometrics: $e')),
+                      );
+                    }
+                  }
+                } else {
+                  ref.read(securitySettingsProvider.notifier).toggleBiometric(false);
+                  // We should ideally delete the key too, but toggling is enough to hide it.
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.password),

@@ -60,6 +60,9 @@ class LocalVaultRepository {
             size INTEGER NOT NULL,
             wrapped_content_key TEXT NOT NULL,
             iv TEXT NOT NULL,
+            is_trashed INTEGER NOT NULL DEFAULT 0,
+            deleted_at INTEGER,
+            is_favourite INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (album_id) REFERENCES albums (id)
           )
         ''');
@@ -146,11 +149,16 @@ class LocalVaultRepository {
             });
           }
         }
+        if (oldVersion < 5) {
+          await db.execute('ALTER TABLE media_items ADD COLUMN is_trashed INTEGER NOT NULL DEFAULT 0');
+          await db.execute('ALTER TABLE media_items ADD COLUMN deleted_at INTEGER');
+          await db.execute('ALTER TABLE media_items ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0');
+        }
       }
 
     final options = isDesktop
         ? OpenDatabaseOptions(
-            version: 4,
+            version: 5,
             onConfigure: (db) async {
               await db.execute("PRAGMA key = '';");
             },
@@ -158,7 +166,7 @@ class LocalVaultRepository {
             onUpgrade: onUpgrade,
           )
         : sqlcipher.SqlCipherOpenDatabaseOptions(
-            version: 4,
+            version: 5,
             password: dbPassword,
             onCreate: onCreate,
             onUpgrade: onUpgrade,
@@ -189,12 +197,12 @@ class LocalVaultRepository {
     return albums.first['id'] as int;
   }
 
-  Future<int> insertMediaItem(String name, String encryptedFilePath, String type, int size, String wrappedKey, String iv) async {
+  Future<int> insertMediaItem(String name, String encryptedFilePath, String type, int size, String wrappedKey, String iv, {int? albumId}) async {
     final db = await database;
     final authMode = _ref.read(authModeProvider);
-    final albumId = await getOrCreateMainAlbum(authMode);
+    final targetAlbumId = albumId ?? await getOrCreateMainAlbum(authMode);
     final id = await db.insert('media_items', {
-      'album_id': albumId,
+      'album_id': targetAlbumId,
       'original_name': name,
       'encrypted_file_path': encryptedFilePath,
       'type': type,
@@ -218,15 +226,24 @@ class LocalVaultRepository {
     );
   }
 
-  Future<List<VaultItemEntity>> getMediaItems({int limit = 50, int offset = 0, AuthMode authMode = AuthMode.real}) async {
+  Future<List<VaultItemEntity>> getMediaItems({int limit = 50, int offset = 0, AuthMode authMode = AuthMode.real, int? albumId}) async {
     final db = await database;
     String whereString = authMode == AuthMode.decoy 
         ? 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 1)'
         : 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 0)';
+    
+    whereString += ' AND is_trashed = 0';
+    List<Object?> whereArgs = [];
+
+    if (albumId != null) {
+      whereString += ' AND album_id = ?';
+      whereArgs.add(albumId);
+    }
 
     final List<Map<String, dynamic>> maps = await db.query(
       'media_items',
       where: whereString,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       orderBy: 'id DESC',
       limit: limit,
       offset: offset,
@@ -242,6 +259,8 @@ class LocalVaultRepository {
     } else {
       whereString += ' AND album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 0)';
     }
+    
+    whereString += ' AND is_trashed = 0';
 
     final List<Map<String, dynamic>> maps = await db.query(
       'media_items',
@@ -252,6 +271,90 @@ class LocalVaultRepository {
       offset: offset,
     );
     return maps.map((e) => VaultItemEntity.fromMap(e)).toList();
+  }
+
+  Future<List<VaultItemEntity>> getTrashedItems({int limit = 50, int offset = 0, AuthMode authMode = AuthMode.real}) async {
+    final db = await database;
+    String whereString = authMode == AuthMode.decoy 
+        ? 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 1)'
+        : 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 0)';
+    whereString += ' AND is_trashed = 1';
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'media_items',
+      where: whereString,
+      orderBy: 'deleted_at DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return maps.map((e) => VaultItemEntity.fromMap(e)).toList();
+  }
+
+  Future<void> moveToTrash(int itemId) async {
+    final db = await database;
+    await db.update(
+      'media_items',
+      {
+        'is_trashed': 1,
+        'deleted_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
+  }
+
+  Future<void> restoreFromTrash(int itemId) async {
+    final db = await database;
+    await db.update(
+      'media_items',
+      {
+        'is_trashed': 0,
+        'deleted_at': null,
+      },
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
+  }
+
+  Future<void> deleteItemPermanently(int itemId) async {
+    final db = await database;
+    
+    // First, delete the file
+    final maps = await db.query('media_items', where: 'id = ?', whereArgs: [itemId]);
+    if (maps.isNotEmpty) {
+      final path = maps.first['encrypted_file_path'] as String?;
+      if (path != null) {
+        try {
+          final file = File(path);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Then delete the row
+    await db.delete('media_items', where: 'id = ?', whereArgs: [itemId]);
+  }
+
+  Future<void> moveItemToAlbum(int itemId, int newAlbumId) async {
+    final db = await database;
+    await db.update(
+      'media_items',
+      {'album_id': newAlbumId},
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
+  }
+
+  Future<void> toggleFavourite(int itemId, bool isFavourite) async {
+    final db = await database;
+    await db.update(
+      'media_items',
+      {'is_favourite': isFavourite ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
   }
 
   Future<String> saveEncryptedFile(List<int> bytes, String fileName) async {

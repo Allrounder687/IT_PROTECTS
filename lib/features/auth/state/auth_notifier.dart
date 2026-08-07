@@ -7,10 +7,13 @@ import '../../settings/state/settings_providers.dart';
 import '../../../core/providers/auth_mode_provider.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../vault/data/local_vault_repository.dart';
+import 'package:flutter/foundation.dart';
+import 'package:local_auth/local_auth.dart';
 
 enum AuthState { locked, authenticating, unlocked, error }
 
 final authNotifierProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+final biometricStatusProvider = StateProvider<String?>((ref) => null);
 
 class AuthNotifier extends Notifier<AuthState> {
   static const _biometricKeyName = 'master_key_biometric';
@@ -149,6 +152,7 @@ class AuthNotifier extends Notifier<AuthState> {
         options: StorageFileInitOptions(
           authenticationValidityDurationSeconds: -1, 
           authenticationRequired: true,
+          androidBiometricOnly: true,
         ),
       );
       
@@ -163,26 +167,53 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> unlockWithBiometrics() async {
+    debugPrint('[BIOMETRIC] button tapped');
     state = AuthState.authenticating;
+    ref.read(biometricStatusProvider.notifier).state = 'Checking biometric support...';
     try {
+      debugPrint('[BIOMETRIC] checking availability');
+      
+      final auth = LocalAuthentication();
+      final canCheck = await auth.canCheckBiometrics;
+      final supported = await auth.isDeviceSupported();
+      final biometrics = await auth.getAvailableBiometrics();
+      
+      debugPrint('[BIOMETRIC] canCheckBiometrics=$canCheck');
+      debugPrint('[BIOMETRIC] isDeviceSupported=$supported');
+      debugPrint('[BIOMETRIC] available=${biometrics.length}');
+      
+      if (!canCheck || !supported || biometrics.isEmpty) {
+        ref.read(biometricStatusProvider.notifier).state = 'Fingerprint unavailable';
+        throw Exception('No usable biometric authentication available');
+      }
+      
+      debugPrint('[BIOMETRIC] authenticate started');
+      ref.read(biometricStatusProvider.notifier).state = 'Fingerprint prompt opened';
+      
       final storageFile = await BiometricStorage().getStorage(
         _biometricKeyName,
         options: StorageFileInitOptions(
-          authenticationValidityDurationSeconds: -1, 
+          authenticationValidityDurationSeconds: -1,
           authenticationRequired: true,
+          androidBiometricOnly: true,
         ),
       );
       
       final keyString = await storageFile.read();
+      debugPrint('[BIOMETRIC] authenticate result: ${keyString != null}');
       if (keyString != null && keyString.isNotEmpty) {
+        ref.read(biometricStatusProvider.notifier).state = 'Fingerprint accepted';
         final masterKeyBytes = keyString.split(',').map(int.parse).toList();
         ref.read(sessionProvider.notifier).state = masterKeyBytes;
         ref.read(authModeProvider.notifier).state = AuthMode.real;
         state = AuthState.unlocked;
       } else {
+        ref.read(biometricStatusProvider.notifier).state = 'Fingerprint rejected';
         throw Exception("No biometric key found");
       }
     } on AuthException catch (e) {
+      debugPrint('[BIOMETRIC] authenticate exception: $e');
+      ref.read(biometricStatusProvider.notifier).state = 'Fingerprint rejected';
       if (e.code.toString().contains('canceled')) {
         state = AuthState.error;
         return;
@@ -190,12 +221,21 @@ class AuthNotifier extends Notifier<AuthState> {
       
       // Biometric set changed or failed.
       try {
-        final storageFile = await BiometricStorage().getStorage(_biometricKeyName);
+        final storageFile = await BiometricStorage().getStorage(
+          _biometricKeyName,
+          options: StorageFileInitOptions(
+            authenticationValidityDurationSeconds: -1,
+            authenticationRequired: true,
+            androidBiometricOnly: true,
+          ),
+        );
         await storageFile.delete();
       } catch (_) {}
       ref.read(securitySettingsProvider.notifier).toggleBiometric(false);
       state = AuthState.error;
     } catch (e) {
+      debugPrint('[BIOMETRIC] authenticate exception: $e');
+      ref.read(biometricStatusProvider.notifier).state = 'Error: $e';
       state = AuthState.error;
     }
   }

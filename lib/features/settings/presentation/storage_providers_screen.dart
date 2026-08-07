@@ -6,7 +6,6 @@ import '../../providers/data/dropbox_repository.dart';
 import '../../providers/data/onedrive_repository.dart';
 import '../../providers/domain/storage_provider.dart';
 import '../../providers/state/active_provider_notifier.dart';
-import '../../auth/state/auth_notifier.dart';
 import '../../../core/security/lifecycle_cleanup_manager.dart';
 import '../state/settings_providers.dart';
 import '../../../core/presentation/responsive_config.dart';
@@ -349,7 +348,7 @@ class _StorageProvidersScreenState extends ConsumerState<StorageProvidersScreen>
                     ElevatedButton.icon(
                       icon: const Icon(Icons.link),
                       label: const Text('Connect'),
-                      onPressed: onConnect,
+                      onPressed: _isLoading ? null : onConnect,
                     ),
                   ],
                 ],

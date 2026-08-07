@@ -5,16 +5,16 @@ import '../data/local_vault_repository.dart';
 import 'pagination_state.dart';
 import '../../../core/providers/auth_mode_provider.dart';
 
-final paginatedVaultProvider = AsyncNotifierProvider<PaginatedVaultNotifier, PaginationState<VaultItemEntity>>(PaginatedVaultNotifier.new);
+final paginatedVaultProvider = AsyncNotifierProvider.family<PaginatedVaultNotifier, PaginationState<VaultItemEntity>, int?>(PaginatedVaultNotifier.new);
 
-class PaginatedVaultNotifier extends AsyncNotifier<PaginationState<VaultItemEntity>> {
+class PaginatedVaultNotifier extends FamilyAsyncNotifier<PaginationState<VaultItemEntity>, int?> {
   static const int _pageSize = 50;
 
   @override
-  Future<PaginationState<VaultItemEntity>> build() async {
+  Future<PaginationState<VaultItemEntity>> build(int? arg) async {
     final authMode = ref.watch(authModeProvider);
     final repo = ref.read(localVaultRepositoryProvider);
-    final items = await repo.getMediaItems(limit: _pageSize, offset: 0, authMode: authMode);
+    final items = await repo.getMediaItems(limit: _pageSize, offset: 0, authMode: authMode, albumId: arg);
     return PaginationState<VaultItemEntity>(
       items: items,
       page: 1,
@@ -37,6 +37,7 @@ class PaginatedVaultNotifier extends AsyncNotifier<PaginationState<VaultItemEnti
         limit: _pageSize, 
         offset: currentState.page * _pageSize,
         authMode: authMode,
+        albumId: arg,
       );
 
       state = AsyncData(PaginationState<VaultItemEntity>(
@@ -55,7 +56,7 @@ class PaginatedVaultNotifier extends AsyncNotifier<PaginationState<VaultItemEnti
     final authMode = ref.read(authModeProvider);
     final repo = ref.read(localVaultRepositoryProvider);
     try {
-      final items = await repo.getMediaItems(limit: _pageSize, offset: 0, authMode: authMode);
+      final items = await repo.getMediaItems(limit: _pageSize, offset: 0, authMode: authMode, albumId: arg);
       state = AsyncData(PaginationState<VaultItemEntity>(
         items: items,
         page: 1,
