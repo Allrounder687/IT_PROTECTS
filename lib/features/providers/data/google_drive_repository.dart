@@ -31,9 +31,6 @@ class GoogleDriveRepository implements StorageProvider {
   late final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: Platform.isIOS 
         ? '100219501471-7bq2p5l3j7vid9uuhr6e3ab4dgf3u7mh.apps.googleusercontent.com'
-        : '100219501471-pdbjgh1bd7dhnolokplmdhld0aqvoa5e.apps.googleusercontent.com',
-    serverClientId: Platform.isAndroid 
-        ? '100219501471-pdbjgh1bd7dhnolokplmdhld0aqvoa5e.apps.googleusercontent.com' 
         : null,
     scopes: [drive.DriveApi.driveAppdataScope],
   );
