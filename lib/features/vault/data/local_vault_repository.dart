@@ -164,7 +164,13 @@ class LocalVaultRepository {
             onUpgrade: onUpgrade,
           );
 
-    return await factory.openDatabase(path, options: options);
+        try {
+      return await factory.openDatabase(path, options: options);
+    } catch (e) {
+      // If it fails to open (e.g. corrupted due to previous PRAGMA crash), delete and recreate
+      await factory.deleteDatabase(path);
+      return await factory.openDatabase(path, options: options);
+    }
   }
 
   Future<int> getOrCreateMainAlbum(AuthMode authMode) async {
