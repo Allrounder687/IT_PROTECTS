@@ -42,7 +42,7 @@ void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEnti
               title: const Text('Move to Album'),
               onTap: () {
                 Navigator.pop(context);
-                _showMoveToAlbumDialog(context, ref, item, currentAlbumId);
+                showMoveToAlbumDialog(context, ref, item, currentAlbumId);
               },
             ),
             ListTile(
@@ -78,7 +78,7 @@ void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEnti
   );
 }
 
-void _showMoveToAlbumDialog(BuildContext context, WidgetRef ref, VaultItemEntity item, int? currentAlbumId) {
+void showMoveToAlbumDialog(BuildContext context, WidgetRef ref, VaultItemEntity item, int? currentAlbumId) {
   final albumsAsync = ref.read(albumsNotifierProvider);
   
   showDialog(

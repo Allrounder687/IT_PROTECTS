@@ -5,6 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../vault/state/vault_notifier.dart';
 import '../../vault/domain/vault_item_entity.dart';
+import '../../vault/data/local_vault_repository.dart';
+import '../../vault/state/paginated_vault_notifier.dart';
+import '../../vault/presentation/vault_item_context_menu.dart';
 import 'image_item_viewer.dart';
 import 'video_item_viewer.dart';
 import 'doc_item_viewer.dart';
@@ -209,15 +212,21 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.favorite_border, color: Colors.white),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Added to Favorites')));
+                            icon: Icon(currentItem.isFavourite ? Icons.favorite : Icons.favorite_border, color: currentItem.isFavourite ? Colors.redAccent : Colors.white),
+                            onPressed: () async {
+                              final repo = ref.read(localVaultRepositoryProvider);
+                              await repo.toggleFavourite(currentItem.id, !currentItem.isFavourite);
+                              ref.read(vaultListProvider.notifier).refresh();
+                              ref.read(paginatedVaultProvider(null).notifier).refresh();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(currentItem.isFavourite ? 'Removed from Favourites' : 'Added to Favourites')));
+                              }
                             },
                           ),
                           IconButton(
                             icon: const Icon(Icons.folder_open, color: Colors.white),
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Move to album...')));
+                              showMoveToAlbumDialog(context, ref, currentItem, null);
                             },
                           ),
                           IconButton(
@@ -232,8 +241,15 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moved to Trash')));
+                            onPressed: () async {
+                              final repo = ref.read(localVaultRepositoryProvider);
+                              await repo.moveToTrash(currentItem.id);
+                              ref.read(vaultListProvider.notifier).refresh();
+                              ref.read(paginatedVaultProvider(null).notifier).refresh();
+                              if (context.mounted) {
+                                context.pop(); // Close viewer since item is gone
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moved to Trash')));
+                              }
                             },
                           ),
                         ],
