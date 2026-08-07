@@ -1,68 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/presentation/components/custom_app_bar.dart';
+import '../../../core/presentation/components/vault_card.dart';
+import '../../../core/presentation/responsive_config.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../vault/presentation/encrypted_grid_widget.dart';
+import '../../vault/domain/vault_item_entity.dart';
 import '../state/trash_notifier.dart';
+import '../../vault/state/paginated_vault_notifier.dart';
+import '../../vault/state/vault_notifier.dart';
 
-class TrashScreen extends ConsumerStatefulWidget {
+class TrashScreen extends ConsumerWidget {
   const TrashScreen({super.key});
 
-  @override
-  ConsumerState<TrashScreen> createState() => _TrashScreenState();
-}
-
-class _TrashScreenState extends ConsumerState<TrashScreen> {
-  final Set<int> _selectedIds = {};
-
-  void _toggleSelection(int id) {
-    setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-      } else {
-        _selectedIds.add(id);
-      }
-    });
-  }
-
-  void _restoreSelected() {
-    for (final id in _selectedIds) {
-      ref.read(trashNotifierProvider.notifier).restoreItem(id);
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Restored ${_selectedIds.length} items.')),
+  void _showTrashItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEntity item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.restore, color: Colors.green),
+                title: const Text('Restore'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(trashNotifierProvider.notifier).restoreItem(item.id);
+                  ref.invalidate(vaultListProvider);
+                  ref.read(paginatedVaultProvider(null).notifier).refresh();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Item restored to Vault')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
+                title: const Text('Delete Permanently', style: TextStyle(color: Colors.redAccent)),
+                onTap: () {
+                  Navigator.pop(context);
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: AppTheme.surface,
+                      title: const Text('Permanently Delete?'),
+                      content: const Text('This action cannot be undone. The file will be permanently removed from your device.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            ref.read(trashNotifierProvider.notifier).deleteItemPermanently(item.id);
+                          },
+                          child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
     );
-    setState(() {
-      _selectedIds.clear();
-    });
   }
 
-  void _deletePermanently() {
+  void _showEmptyTrashDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text('Delete Permanently?'),
-        content: Text('Are you sure you want to permanently delete ${_selectedIds.length} items? This cannot be undone.'),
+        title: const Text('Empty Trash?'),
+        content: const Text('All items in the trash will be permanently deleted. This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          TextButton(
             onPressed: () {
               Navigator.pop(context);
-              for (final id in _selectedIds) {
-                ref.read(trashNotifierProvider.notifier).deleteItemPermanently(id);
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Permanently deleted ${_selectedIds.length} items.')),
-              );
-              setState(() {
-                _selectedIds.clear();
-              });
+              ref.read(trashNotifierProvider.notifier).emptyTrash();
             },
-            child: const Text('Delete'),
+            child: const Text('Empty Trash', style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -70,81 +101,76 @@ class _TrashScreenState extends ConsumerState<TrashScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final trashStateAsync = ref.watch(trashNotifierProvider);
-    final isSelectionMode = _selectedIds.isNotEmpty;
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: isSelectionMode ? '${_selectedIds.length} Selected' : 'Trash',
+        title: 'Recycle Bin',
         actions: [
-          if (isSelectionMode) ...[
-            IconButton(
-              icon: const Icon(Icons.restore),
-              onPressed: _restoreSelected,
-              tooltip: 'Restore',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-              onPressed: _deletePermanently,
-              tooltip: 'Delete Permanently',
-            ),
-          ] else ...[
-            IconButton(
-              icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
-              onPressed: () {
-                ref.read(trashNotifierProvider.notifier).emptyTrash();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trash emptied')));
-              },
-              tooltip: 'Empty Trash',
-            ),
-          ]
+          IconButton(
+            icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
+            tooltip: 'Empty Trash',
+            onPressed: () => _showEmptyTrashDialog(context, ref),
+          ),
         ],
       ),
-      body: trashStateAsync.when(
-        data: (trashItems) => trashItems.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.delete_outline, size: 64, color: AppTheme.textSecondary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Trash is empty',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppTheme.textSecondary,
+      body: ResponsiveConfig.buildConstrainedBody(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                'Tap any item to restore or permanently delete it.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+              ),
+            ),
+            Expanded(
+              child: trashStateAsync.when(
+                data: (items) {
+                  if (items.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.delete_outline, size: 64, color: Colors.white30),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Trash is empty.',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: Colors.white54,
+                                ),
                           ),
-                    ),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                itemCount: trashItems.length,
-                itemBuilder: (context, index) {
-                  final item = trashItems[index];
-                  final isSelected = _selectedIds.contains(item.id);
+                        ],
+                      ).animate().fade(duration: 400.ms).scale(begin: const Offset(0.9, 0.9)),
+                    );
+                  }
 
-                  return ListTile(
-                    leading: const Icon(Icons.broken_image, color: AppTheme.primary),
-                    title: Text(item.originalName),
-                    subtitle: Text(item.deletedAt != null 
-                        ? 'Deleted ${DateTime.fromMillisecondsSinceEpoch(item.deletedAt!).toString().split('.')[0]}'
-                        : 'Deleted recently'),
-                    trailing: isSelected ? const Icon(Icons.check_circle, color: AppTheme.primary) : const Icon(Icons.circle_outlined),
-                    selected: isSelected,
-                    onTap: () {
-                      if (isSelectionMode) {
-                        _toggleSelection(item.id);
-                      }
-                    },
-                    onLongPress: () {
-                      _toggleSelection(item.id);
+                  return GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                    gridDelegate: ResponsiveConfig.getVaultGridDelegate(),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return VaultCard(
+                        item: item,
+                        thumbnail: EncryptedGridWidget(item: item),
+                        onTap: () {
+                          // View not allowed in trash, show context menu
+                          _showTrashItemContextMenu(context, ref, item);
+                        },
+                        onLongPress: () => _showTrashItemContextMenu(context, ref, item),
+                      ).animate().fade(delay: ((index % 10) * 50).ms, duration: 300.ms).slideY(begin: 0.1, end: 0);
                     },
                   );
                 },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(child: Text('Error: $error')),
               ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error: $e')),
+            ),
+          ],
+        ),
       ),
     );
   }
