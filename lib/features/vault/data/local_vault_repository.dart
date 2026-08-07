@@ -31,22 +31,13 @@ class LocalVaultRepository {
     final authRepo = _ref.read(authRepositoryProvider);
     final dbPassword = await authRepo.getOrGenerateDatabaseKey();
     
-    // Use the factory to support FFI on Desktop
-    final factory = (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS) 
-        ? databaseFactoryFfi 
-        : sqlcipher.databaseFactory;
+    final isDesktop = (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+    final factory = isDesktop ? databaseFactoryFfi : sqlcipher.databaseFactory;
 
     final dbPath = await factory.getDatabasesPath();
     final path = p.join(dbPath, 'vault.db');
 
-    return await factory.openDatabase(
-      path,
-      options: OpenDatabaseOptions(
-        version: 4,
-        onConfigure: (db) async {
-          await db.rawQuery("PRAGMA key = '$dbPassword';");
-        },
-        onCreate: (db, version) async {
+    Future<void> onCreate(db, version) async {
           await db.execute('''
             CREATE TABLE albums (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,8 +108,9 @@ class LocalVaultRepository {
           'is_locked': 1,
           'is_decoy_visible': 0,
         });
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
+      }
+
+    Future<void> onUpgrade(db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('ALTER TABLE albums ADD COLUMN type TEXT NOT NULL DEFAULT "custom"');
           await db.execute('ALTER TABLE albums ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0');
@@ -154,9 +146,25 @@ class LocalVaultRepository {
             });
           }
         }
-      },
-    ),
-    );
+      }
+
+    final options = isDesktop
+        ? OpenDatabaseOptions(
+            version: 4,
+            onConfigure: (db) async {
+              await db.execute("PRAGMA key = '';");
+            },
+            onCreate: onCreate,
+            onUpgrade: onUpgrade,
+          )
+        : sqlcipher.SqlCipherOpenDatabaseOptions(
+            version: 4,
+            password: dbPassword,
+            onCreate: onCreate,
+            onUpgrade: onUpgrade,
+          );
+
+    return await factory.openDatabase(path, options: options);
   }
 
   Future<int> getOrCreateMainAlbum(AuthMode authMode) async {
