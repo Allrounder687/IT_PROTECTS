@@ -5,7 +5,13 @@ import '../domain/vault_item_entity.dart';
 import '../data/local_vault_repository.dart';
 import '../state/paginated_vault_notifier.dart';
 import '../../albums/state/albums_notifier.dart';
-
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:cryptography/cryptography.dart';
+import '../domain/encryption_use_case.dart';
+import '../../auth/state/auth_notifier.dart';
+import 'decoy_auth_dialog.dart';
 void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEntity item, {int? currentAlbumId}) {
   showModalBottomSheet(
     context: context,
@@ -50,9 +56,26 @@ void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEnti
               title: const Text('Safe Send'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Safe Send coming soon...')),
+                executeSafeSend(context, ref, item);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.security, color: AppTheme.primary),
+              title: const Text('Mark as Decoy'),
+              onTap: () async {
+                Navigator.pop(context);
+                final success = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => DecoyAuthDialog(item: item),
                 );
+                if (success == true) {
+                  ref.read(paginatedVaultProvider(currentAlbumId).notifier).refresh();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Moved to Decoy Vault')),
+                    );
+                  }
+                }
               },
             ),
             ListTile(
@@ -130,4 +153,47 @@ void showMoveToAlbumDialog(BuildContext context, WidgetRef ref, VaultItemEntity 
       );
     },
   );
+}
+Future<void> executeSafeSend(BuildContext context, WidgetRef ref, VaultItemEntity item) async {
+  try {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preparing Safe Send...')));
+    
+    // 1. Read encrypted file
+    final file = File(item.encryptedFilePath);
+    final encryptedBytes = await file.readAsBytes();
+    
+    // 2. Decrypt
+    final encUseCase = ref.read(encryptionUseCaseProvider);
+    final masterKeyBytes = ref.read(sessionProvider);
+    if (masterKeyBytes == null) throw Exception('No session key');
+    final masterKey = SecretKey(masterKeyBytes);
+    
+    final decryptedBytes = await encUseCase.decryptDataWithCek(
+      encryptedBytes,
+      item.wrappedContentKey,
+      item.iv,
+      masterKey,
+    );
+    
+    // 3. Save to cache
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/');
+    await tempFile.writeAsBytes(decryptedBytes);
+    
+    // 4. Share
+    final result = await Share.shareXFiles([XFile(tempFile.path)]);
+    
+    // 5. Cleanup
+    if (await tempFile.exists()) {
+      await tempFile.delete();
+    }
+    
+    if (context.mounted && result.status == ShareResultStatus.success) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent securely! (File deleted from cache)')));
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
 }

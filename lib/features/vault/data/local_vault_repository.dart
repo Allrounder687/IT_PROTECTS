@@ -197,6 +197,24 @@ class LocalVaultRepository {
     return albums.first['id'] as int;
   }
 
+  Future<int> getOrCreateDecoyAlbum() async {
+    final db = await database;
+    final albums = await db.query('albums', where: 'name = ? AND is_decoy_visible = 1', whereArgs: ['Decoy Vault'], limit: 1);
+    if (albums.isNotEmpty) {
+      return albums.first['id'] as int;
+    }
+    
+    // Create one if it doesn't exist
+    return await db.insert('albums', {
+      'name': 'Decoy Vault',
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+      'type': 'local',
+      'is_locked': 0,
+      'storage_provider_id': 'local',
+      'is_decoy_visible': 1,
+    });
+  }
+
   Future<int> insertMediaItem(String name, String encryptedFilePath, String type, int size, String wrappedKey, String iv, {int? albumId}) async {
     final db = await database;
     final authMode = _ref.read(authModeProvider);

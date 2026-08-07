@@ -12,6 +12,8 @@ import 'image_item_viewer.dart';
 import 'video_item_viewer.dart';
 import 'doc_item_viewer.dart';
 
+import '../../vault/presentation/decoy_auth_dialog.dart';
+
 class MediaViewerScreen extends ConsumerStatefulWidget {
   final int initialIndex;
 
@@ -89,30 +91,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
     );
   }
 
-  void _showSafeSendDialog(VaultItemEntity item) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Safe Send'),
-        content: const Text('Generate a secure, time-limited link to share this file?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Safe Send link generated!')),
-              );
-            },
-            child: const Text('Generate Link'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +161,24 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                             ),
                           ),
                           IconButton(
+                            icon: const Icon(Icons.security, color: Colors.white),
+                            onPressed: () async {
+                              final success = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => DecoyAuthDialog(item: currentItem),
+                              );
+                              if (success == true) {
+                                ref.read(vaultListProvider.notifier).refresh();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Moved to Decoy Vault')),
+                                  );
+                                  Navigator.pop(context); // Close viewer as it's moved
+                                }
+                              }
+                            },
+                          ),
+                          IconButton(
                             icon: const Icon(Icons.info_outline, color: Colors.white),
                             onPressed: () => _showInfoOverlay(currentItem),
                           ),
@@ -237,7 +234,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.send_time_extension, color: Colors.white),
-                            onPressed: () => _showSafeSendDialog(currentItem),
+                            onPressed: () => executeSafeSend(context, ref, currentItem),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),

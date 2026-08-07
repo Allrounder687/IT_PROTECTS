@@ -32,16 +32,7 @@ class _SetupDecoyPinScreenState extends ConsumerState<SetupDecoyPinScreen> {
     if (_pin.length == 4) {
       setState(() => _isLoading = true);
       try {
-        final authRepo = ref.read(authRepositoryProvider);
-        final authUseCase = ref.read(authUseCaseProvider);
-        
-        final decoySalt = await authRepo.getOrGenerateDecoySalt();
-        final hash = await authUseCase.hashPin(_pin, decoySalt);
-        
-        await authRepo.saveDecoyPinHash(hash);
-        
-        // Ensure the setting is enabled
-        ref.read(securitySettingsProvider.notifier).toggleDecoyVault(true);
+        await ref.read(authNotifierProvider.notifier).createDecoyPin(_pin);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
