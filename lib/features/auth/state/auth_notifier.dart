@@ -148,18 +148,27 @@ class AuthNotifier extends Notifier<AuthState> {
       final masterKeyBytes = ref.read(sessionProvider);
       if (masterKeyBytes == null) throw Exception("Vault must be unlocked to enroll biometrics");
       
-      final storageFile = await BiometricStorage().getStorage(
-        _biometricKeyName,
-        options: StorageFileInitOptions(
-          authenticationValidityDurationSeconds: -1, 
-          authenticationRequired: true,
-          androidBiometricOnly: true,
+      final auth = LocalAuthentication();
+      final canCheck = await auth.canCheckBiometrics;
+      if (!canCheck) throw Exception("Biometrics not available");
+      
+      // We rely on local_auth to verify identity first
+      final authenticated = await auth.authenticate(
+        localizedReason: 'Please authenticate to enable biometric unlock',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
         ),
       );
       
-      // Store the master key as a comma-separated string of bytes
+      if (!authenticated) throw Exception("Authentication failed");
+      
+      // Store the master key securely
+      final authRepo = ref.read(authRepositoryProvider);
       final keyString = masterKeyBytes.join(',');
-      await storageFile.write(keyString);
+      // Using flutter_secure_storage via authRepo (we'll add a method or just use it directly)
+      final storage = const FlutterSecureStorage();
+      await storage.write(key: _biometricKeyName, value: keyString);
       
       ref.read(securitySettingsProvider.notifier).toggleBiometric(true);
     } catch (e) {
@@ -172,36 +181,34 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState.authenticating;
     ref.read(biometricStatusProvider.notifier).state = 'Checking biometric support...';
     try {
-      debugPrint('[BIOMETRIC] checking availability');
-      
       final auth = LocalAuthentication();
       final canCheck = await auth.canCheckBiometrics;
       final supported = await auth.isDeviceSupported();
       final biometrics = await auth.getAvailableBiometrics();
-      
-      debugPrint('[BIOMETRIC] canCheckBiometrics=$canCheck');
-      debugPrint('[BIOMETRIC] isDeviceSupported=$supported');
-      debugPrint('[BIOMETRIC] available=${biometrics.length}');
       
       if (!canCheck || !supported || biometrics.isEmpty) {
         ref.read(biometricStatusProvider.notifier).state = 'Fingerprint unavailable';
         throw Exception('No usable biometric authentication available');
       }
       
-      debugPrint('[BIOMETRIC] authenticate started');
       ref.read(biometricStatusProvider.notifier).state = 'Fingerprint prompt opened';
       
-      final storageFile = await BiometricStorage().getStorage(
-        _biometricKeyName,
-        options: StorageFileInitOptions(
-          authenticationValidityDurationSeconds: -1,
-          authenticationRequired: true,
-          androidBiometricOnly: true,
+      final authenticated = await auth.authenticate(
+        localizedReason: 'Authenticate to unlock your vault',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
         ),
       );
       
-      final keyString = await storageFile.read();
-      debugPrint('[BIOMETRIC] authenticate result: ${keyString != null}');
+      if (!authenticated) {
+        ref.read(biometricStatusProvider.notifier).state = 'Fingerprint rejected';
+        throw Exception("Authentication failed");
+      }
+      
+      final storage = const FlutterSecureStorage();
+      final keyString = await storage.read(key: _biometricKeyName);
+      
       if (keyString != null && keyString.isNotEmpty) {
         ref.read(biometricStatusProvider.notifier).state = 'Fingerprint accepted';
         final masterKeyBytes = keyString.split(',').map(int.parse).toList();
@@ -212,31 +219,20 @@ class AuthNotifier extends Notifier<AuthState> {
         ref.read(biometricStatusProvider.notifier).state = 'Fingerprint rejected';
         throw Exception("No biometric key found");
       }
-    } on AuthException catch (e) {
+    } catch (e) {
       debugPrint('[BIOMETRIC] authenticate exception: $e');
-      ref.read(biometricStatusProvider.notifier).state = 'Fingerprint rejected';
-      if (e.code.toString().contains('canceled')) {
+      ref.read(biometricStatusProvider.notifier).state = 'Error: $e';
+      
+      if (e.toString().contains('canceled')) {
         state = AuthState.error;
         return;
       }
       
-      // Biometric set changed or failed.
       try {
-        final storageFile = await BiometricStorage().getStorage(
-          _biometricKeyName,
-          options: StorageFileInitOptions(
-            authenticationValidityDurationSeconds: -1,
-            authenticationRequired: true,
-            androidBiometricOnly: true,
-          ),
-        );
-        await storageFile.delete();
+        final storage = const FlutterSecureStorage();
+        await storage.delete(key: _biometricKeyName);
       } catch (_) {}
       ref.read(securitySettingsProvider.notifier).toggleBiometric(false);
-      state = AuthState.error;
-    } catch (e) {
-      debugPrint('[BIOMETRIC] authenticate exception: $e');
-      ref.read(biometricStatusProvider.notifier).state = 'Error: $e';
       state = AuthState.error;
     }
   }
