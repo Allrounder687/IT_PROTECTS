@@ -8,6 +8,7 @@ import '../../../core/presentation/components/custom_app_bar.dart';
 import '../../../core/presentation/components/settings_group_header.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/state/auth_notifier.dart';
+import '../../../core/services/updater_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -173,6 +174,51 @@ class SettingsScreen extends ConsumerWidget {
               value: playback.showMetadata,
               onChanged: (v) => ref.read(playbackPrivacySettingsProvider.notifier).toggleShowMetadata(v),
             ),
+            const Divider(),
+            const SettingsGroupHeader(title: 'About & Updates'),
+            Consumer(
+              builder: (context, ref, child) {
+                final updaterState = ref.watch(updaterProvider);
+                return ListTile(
+                  leading: updaterState.isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.system_update),
+                  title: const Text('Check for Updates'),
+                  subtitle: Text(updaterState.updateAvailable
+                      ? 'Update ${updaterState.latestVersion} available!'
+                      : (updaterState.error != null
+                          ? 'Error checking for updates'
+                          : 'You are up to date')),
+                  trailing: updaterState.updateAvailable
+                      ? TextButton(
+                          onPressed: () {
+                            ref.read(updaterProvider.notifier).downloadAndInstallUpdate(context);
+                          },
+                          child: const Text('INSTALL'),
+                        )
+                      : null,
+                  onTap: () async {
+                    if (updaterState.isLoading) return;
+                    final hasUpdate = await ref.read(updaterProvider.notifier).checkForUpdates();
+                    if (!hasUpdate && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('App is up to date!')),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+            const ListTile(
+              leading: Icon(Icons.info_outline),
+              title: Text('About IT Protects'),
+              subtitle: Text('Developed by Syed Faisal Majeed'),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
     ));
