@@ -168,7 +168,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                                 builder: (context) => DecoyAuthDialog(item: currentItem),
                               );
                               if (success == true) {
-                                ref.read(vaultListProvider.notifier).refresh();
+                                ref.invalidate(vaultListProvider);
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('Moved to Decoy Vault')),

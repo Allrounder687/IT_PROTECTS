@@ -10,6 +10,7 @@ import '../../auth/state/auth_notifier.dart';
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import '../../../core/providers/auth_mode_provider.dart';
+import '../../../core/providers/session_provider.dart';
 
 class DecoyAuthDialog extends ConsumerStatefulWidget {
   final VaultItemEntity item;

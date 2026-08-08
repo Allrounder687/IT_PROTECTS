@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/auth_use_case.dart';
+import '../../auth/state/auth_notifier.dart';
 import '../state/settings_providers.dart';
 
 class SetupDecoyPinScreen extends ConsumerStatefulWidget {

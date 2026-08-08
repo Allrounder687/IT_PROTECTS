@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:cryptography/cryptography.dart';
 import '../domain/encryption_use_case.dart';
 import '../../auth/state/auth_notifier.dart';
+import '../../../core/providers/session_provider.dart';
 import 'decoy_auth_dialog.dart';
 void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEntity item, {int? currentAlbumId}) {
   showModalBottomSheet(
