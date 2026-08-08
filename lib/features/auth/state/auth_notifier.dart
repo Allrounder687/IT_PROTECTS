@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
-import 'package:biometric_storage/biometric_storage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_use_case.dart';
 import '../../settings/state/settings_providers.dart';
