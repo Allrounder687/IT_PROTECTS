@@ -100,10 +100,10 @@ class _DecoyAuthDialogState extends ConsumerState<DecoyAuthDialog> {
 
       // 4. Find Decoy Vault album and move item
       final repo = ref.read(localVaultRepositoryProvider);
-      final decoyAlbumId = await repo.getOrCreateDecoyAlbum(); // Wait, does this method exist?
+      final decoyAlbumId = await repo.getOrCreateDecoyAlbum(authMode: AuthMode.decoy);
       
-      await repo.updateMediaItemKeys(widget.item.id, newWrappedKeyBase64, newIvBase64);
-      await repo.moveItemToAlbum(widget.item.id, decoyAlbumId);
+      await repo.updateMediaItemKeys(widget.item.id, newWrappedKeyBase64, newIvBase64, authMode: AuthMode.real);
+      await repo.moveItemToAlbum(widget.item.id, decoyAlbumId, authMode: AuthMode.real);
 
       if (mounted) {
         Navigator.pop(context, true);

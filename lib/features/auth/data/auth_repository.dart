@@ -16,6 +16,7 @@ class AuthRepository {
   static const _keyMasterKey = 'wrapped_master_key';
   static const _keyDecoyMasterKey = 'wrapped_decoy_master_key';
   static const _keyDbKey = 'db_key';
+  static const _keyDecoyDbKey = 'decoy_db_key';
   static const _keySalt = 'crypto_salt';
   static const _keyDecoySalt = 'crypto_decoy_salt';
 
@@ -48,6 +49,17 @@ class AuthRepository {
       final keyBytes = List<int>.generate(32, (i) => random.nextInt(256));
       dbKey = base64Encode(keyBytes);
       await _storage.write(key: _keyDbKey, value: dbKey);
+    }
+    return dbKey;
+  }
+
+  Future<String> getOrGenerateDecoyDatabaseKey() async {
+    var dbKey = await _storage.read(key: _keyDecoyDbKey);
+    if (dbKey == null) {
+      final random = Random.secure();
+      final keyBytes = List<int>.generate(32, (i) => random.nextInt(256));
+      dbKey = base64Encode(keyBytes);
+      await _storage.write(key: _keyDecoyDbKey, value: dbKey);
     }
     return dbKey;
   }
@@ -97,7 +109,7 @@ class AuthRepository {
   Future<void> clearAll() async {
     final keys = [
       _keyPinHash, _keyDecoyPinHash, _keyMasterKey, 
-      _keyDecoyMasterKey, _keyDbKey, _keySalt, _keyDecoySalt
+      _keyDecoyMasterKey, _keyDbKey, _keyDecoyDbKey, _keySalt, _keyDecoySalt
     ];
     for (final key in keys) {
       try {

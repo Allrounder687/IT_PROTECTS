@@ -11,6 +11,7 @@ class VaultHeroHeader extends ConsumerWidget {
   final bool showSearch;
   final ValueChanged<String>? onSearchChanged;
   final VoidCallback? onUploadPressed;
+  final String uploadButtonLabel;
 
   const VaultHeroHeader({
     super.key,
@@ -19,6 +20,7 @@ class VaultHeroHeader extends ConsumerWidget {
     this.showSearch = false,
     this.onSearchChanged,
     this.onUploadPressed,
+    this.uploadButtonLabel = 'Secure Upload',
   });
 
   @override
@@ -86,7 +88,7 @@ class VaultHeroHeader extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         onPressed: onUploadPressed,
                         icon: const Icon(Icons.upload_file),
-                        label: const Text('Secure Upload'),
+                        label: Text(uploadButtonLabel),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,

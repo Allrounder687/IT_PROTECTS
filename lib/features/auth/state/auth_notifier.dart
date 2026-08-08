@@ -251,7 +251,8 @@ class AuthNotifier extends Notifier<AuthState> {
       final vaultRepo = ref.read(localVaultRepositoryProvider);
       
       try {
-        await vaultRepo.deleteVault();
+        final authMode = ref.read(authModeProvider);
+        await vaultRepo.deleteVault(authMode: authMode);
       } catch (_) {
         // Ignore errors deleting vault to guarantee secure storage is wiped
       }

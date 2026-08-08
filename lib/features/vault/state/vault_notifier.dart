@@ -11,8 +11,15 @@ import '../../providers/state/sync_status_notifier.dart';
 import '../../../core/providers/session_provider.dart';
 
 import '../domain/migration_use_case.dart';
+import '../../../core/providers/auth_mode_provider.dart';
 
 final vaultListProvider = AsyncNotifierProvider.autoDispose<VaultAsyncNotifier, List<VaultItemEntity>>(VaultAsyncNotifier.new);
+
+final coverItemProvider = FutureProvider.family<VaultItemEntity?, int>((ref, coverItemId) async {
+  final repo = ref.read(localVaultRepositoryProvider);
+  final authMode = ref.watch(authModeProvider);
+  return await repo.getMediaItem(coverItemId, authMode: authMode);
+});
 
 class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>> {
   final ImagePicker _picker = ImagePicker();
@@ -23,8 +30,9 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
     final migration = ref.read(migrationUseCaseProvider);
     await migration.migrateOldImages();
 
+    final authMode = ref.watch(authModeProvider);
     final localRepo = ref.read(localVaultRepositoryProvider);
-    return await localRepo.getMediaItems();
+    return await localRepo.getMediaItems(authMode: authMode);
   }
 
   Future<void> importPhoto({int? albumId}) async {
@@ -47,6 +55,7 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
     final fileName = '${_uuid.v4()}.enc';
     final savedPath = await localRepo.saveEncryptedFile(encryptionResult.encryptedDataBlob, fileName);
     
+    final authMode = ref.read(authModeProvider);
     final id = await localRepo.insertMediaItem(
       image.name, 
       savedPath, 
@@ -55,6 +64,7 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
       encryptionResult.wrappedContentKey,
       encryptionResult.iv,
       albumId: albumId,
+      authMode: authMode,
     );
     
     final cloudSettings = ref.read(cloudSyncSettingsProvider);
@@ -65,7 +75,7 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
         targetProviderId: cloudSettings.defaultProviderId!,
         createdAt: DateTime.now(),
       );
-      await localRepo.enqueueSyncJob(job);
+      await localRepo.enqueueSyncJob(job, authMode: authMode);
       ref.read(syncStatusProvider.notifier).markAsQueued();
     }
 

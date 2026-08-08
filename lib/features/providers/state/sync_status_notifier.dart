@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'active_provider_notifier.dart';
 import '../domain/sync_job.dart';
+import '../../albums/data/albums_repository.dart';
+import '../../../core/providers/auth_mode_provider.dart';
 import '../../vault/data/local_vault_repository.dart';
 import '../../settings/state/settings_providers.dart';
 
@@ -55,9 +57,10 @@ class SyncStatusNotifier extends AsyncNotifier<SyncState> {
       state = const AsyncData(SyncState.syncingUp);
       
       final repo = ref.read(localVaultRepositoryProvider);
+      final authMode = ref.read(authModeProvider);
       
       while (true) {
-        final jobs = await repo.getPendingSyncJobs(limit: 5);
+        final jobs = await repo.getPendingSyncJobs(limit: 5, authMode: authMode);
         if (jobs.isEmpty) break;
 
         for (final job in jobs) {
@@ -72,13 +75,13 @@ class SyncStatusNotifier extends AsyncNotifier<SyncState> {
               await Future.delayed(const Duration(milliseconds: 800)); 
               // await provider.uploadBlob(bytes, "enc_file_${job.itemId}");
               
-              await repo.deleteSyncJob(job.id!);
+              await repo.deleteSyncJob(job.id!, authMode: authMode);
             } else {
               // Handle delete/update
-              await repo.deleteSyncJob(job.id!);
+              await repo.deleteSyncJob(job.id!, authMode: authMode);
             }
           } catch (e) {
-            await repo.updateSyncJobError(job.id!, job.retryCount + 1, e.toString());
+            await repo.updateSyncJobError(job.id!, job.retryCount + 1, e.toString(), authMode: authMode);
           }
         }
       }

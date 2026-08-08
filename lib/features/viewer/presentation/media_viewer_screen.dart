@@ -13,6 +13,7 @@ import 'video_item_viewer.dart';
 import 'doc_item_viewer.dart';
 
 import '../../vault/presentation/decoy_auth_dialog.dart';
+import '../../../core/providers/auth_mode_provider.dart';
 
 class MediaViewerScreen extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -212,7 +213,8 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                             icon: Icon(currentItem.isFavourite ? Icons.favorite : Icons.favorite_border, color: currentItem.isFavourite ? Colors.redAccent : Colors.white),
                             onPressed: () async {
                               final repo = ref.read(localVaultRepositoryProvider);
-                              await repo.toggleFavourite(currentItem.id, !currentItem.isFavourite);
+                              final authMode = ref.read(authModeProvider);
+                              await repo.toggleFavourite(currentItem.id, !currentItem.isFavourite, authMode: authMode);
                               ref.invalidate(vaultListProvider);
                               ref.read(paginatedVaultProvider(null).notifier).refresh();
                               if (context.mounted) {
@@ -240,7 +242,8 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                             onPressed: () async {
                               final repo = ref.read(localVaultRepositoryProvider);
-                              await repo.moveToTrash(currentItem.id);
+                              final authMode = ref.read(authModeProvider);
+                              await repo.moveToTrash(currentItem.id, authMode: authMode);
                               ref.invalidate(vaultListProvider);
                               ref.read(paginatedVaultProvider(null).notifier).refresh();
                               if (context.mounted) {

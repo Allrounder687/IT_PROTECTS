@@ -5,6 +5,7 @@ import '../../auth/data/auth_repository.dart';
 import 'encryption_use_case.dart';
 import '../data/local_vault_repository.dart';
 import '../../../core/providers/session_provider.dart';
+import '../../../core/providers/auth_mode_provider.dart';
 
 final migrationUseCaseProvider = Provider<MigrationUseCase>((ref) {
   return MigrationUseCase(ref);
@@ -19,6 +20,9 @@ class MigrationUseCase {
     final authRepo = _ref.read(authRepositoryProvider);
     final encUseCase = _ref.read(encryptionUseCaseProvider);
     final localRepo = _ref.read(localVaultRepositoryProvider);
+    
+    // Migrate decoy items out of vault.db
+    await localRepo.migrateDecoyDatabase();
     
     // Get the old master key
     final oldMasterKeyBytes = await authRepo.getOldMasterKey();
@@ -78,6 +82,7 @@ class MigrationUseCase {
               item.id,
               encryptionResult.wrappedContentKey,
               encryptionResult.iv,
+              authMode: AuthMode.real,
             );
           } catch (oldE) {
             // Couldn't decrypt with old key either, ignore

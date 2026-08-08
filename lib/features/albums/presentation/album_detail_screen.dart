@@ -7,6 +7,7 @@ import '../../vault/state/paginated_vault_notifier.dart';
 import '../../vault/presentation/encrypted_grid_widget.dart';
 import '../../../core/presentation/responsive_config.dart';
 import '../../../core/presentation/components/custom_app_bar.dart';
+import '../../../core/presentation/components/vault_hero_header.dart';
 import '../../../core/presentation/components/vault_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../state/albums_notifier.dart';
@@ -105,6 +106,13 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
       appBar: CustomAppBar(
         title: album?.name ?? 'Album',
         showSearch: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Upload to this album',
+            onPressed: _showAddBottomSheet,
+          ),
+        ],
         onSearchChanged: (value) {
           // TODO: Implement scoped search
         },
@@ -113,6 +121,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            VaultHeroHeader(
+              title: album?.name ?? 'Album',
+              subtitle: '${album?.itemCount ?? 0} items secured.',
+              onUploadPressed: _showAddBottomSheet,
+              uploadButtonLabel: 'Upload to this album',
+            ),
             Expanded(
               child: paginatedStateAsync.when(
                 data: (paginatedState) {

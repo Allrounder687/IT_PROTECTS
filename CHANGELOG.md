@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (Albums UX Improvements)
+- **Album Counts**: Fixed album counts to exclude trashed items and dynamically update on sync completion.
+- **Album Covers**: Introduced `cover_item_id` to database. Albums now automatically display the most recent item as a cover, or allow manual selection via item context menu.
+- **Upload UX**: Moved the confusing global "Secure Upload" hero header from the Albums screen to individual Album Detail screens, renaming it to "Upload to this album". Added a dedicated "+ Album" creation button.
+
+
 ### Added (Phase 19: Security Settings, Intruder Alerts & Logs UI)
 - **Settings Screen Updates**: Added Face-down auto lock toggle and a Playback Mode selector dialog (Immersive, Safe, Minimal).
 - **Change PIN Flow**: Created a robust `ChangePinScreen` to verify current PIN before setting a new one.

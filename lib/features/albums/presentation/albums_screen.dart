@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../state/albums_notifier.dart';
 import '../domain/album.dart';
 import '../../../core/presentation/responsive_config.dart';
-import '../../../core/presentation/components/vault_hero_header.dart';
+import '../../../core/presentation/components/custom_app_bar.dart';
 import '../../../core/presentation/components/album_card.dart';
 import '../../../core/presentation/components/skeleton_grid.dart';
 import '../../../core/theme/app_theme.dart';
@@ -103,15 +103,20 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   Widget build(BuildContext context) {
     final albumsAsync = ref.watch(albumsNotifierProvider);
     return Scaffold(
+      appBar: CustomAppBar(
+        title: 'Albums',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.create_new_folder_outlined),
+            tooltip: 'Create New Album',
+            onPressed: _showCreateAlbumDialog,
+          ),
+        ],
+      ),
       body: ResponsiveConfig.buildFluidBody(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            VaultHeroHeader(
-              title: 'Albums',
-              subtitle: 'Organize your memories securely.',
-              onUploadPressed: _showCreateAlbumDialog,
-            ),
             const SizedBox(height: 16),
             Expanded(
               child: albumsAsync.when(
@@ -150,6 +155,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
         title: album.name,
         itemCount: album.itemCount,
         isLocked: album.isLocked,
+        coverItemId: album.coverItemId,
         onTap: () {
           // Route to Album Detail Screen
           context.push('/albums/${album.id}');

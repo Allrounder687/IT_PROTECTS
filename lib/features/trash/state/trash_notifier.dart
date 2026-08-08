@@ -25,21 +25,24 @@ class TrashNotifier extends AsyncNotifier<List<VaultItemEntity>> {
 
   Future<void> restoreItem(int itemId) async {
     final repo = ref.read(localVaultRepositoryProvider);
-    await repo.restoreFromTrash(itemId);
+    final authMode = ref.read(authModeProvider);
+    await repo.restoreFromTrash(itemId, authMode: authMode);
     await refresh();
   }
 
   Future<void> deleteItemPermanently(int itemId) async {
     final repo = ref.read(localVaultRepositoryProvider);
-    await repo.deleteItemPermanently(itemId);
+    final authMode = ref.read(authModeProvider);
+    await repo.deleteItemPermanently(itemId, authMode: authMode);
     await refresh();
   }
 
   Future<void> emptyTrash() async {
     final items = state.valueOrNull ?? [];
     final repo = ref.read(localVaultRepositoryProvider);
+    final authMode = ref.read(authModeProvider);
     for (final item in items) {
-      await repo.deleteItemPermanently(item.id);
+      await repo.deleteItemPermanently(item.id, authMode: authMode);
     }
     await refresh();
   }

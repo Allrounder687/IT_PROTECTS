@@ -13,6 +13,8 @@ import '../domain/encryption_use_case.dart';
 import '../../auth/state/auth_notifier.dart';
 import '../../../core/providers/session_provider.dart';
 import 'decoy_auth_dialog.dart';
+import '../../../core/providers/auth_mode_provider.dart';
+
 void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEntity item, {int? currentAlbumId}) {
   showModalBottomSheet(
     context: context,
@@ -35,7 +37,8 @@ void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEnti
               onTap: () async {
                 Navigator.pop(context);
                 final repo = ref.read(localVaultRepositoryProvider);
-                await repo.toggleFavourite(item.id, !item.isFavourite);
+                final authMode = ref.read(authModeProvider);
+                await repo.toggleFavourite(item.id, !item.isFavourite, authMode: authMode);
                 ref.read(paginatedVaultProvider(currentAlbumId).notifier).refresh();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -44,6 +47,28 @@ void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEnti
                 }
               },
             ),
+            if (item.albumId != null)
+              ListTile(
+                leading: const Icon(Icons.image, color: AppTheme.primary),
+                title: const Text('Set as album cover'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    await ref.read(albumsNotifierProvider.notifier).setAlbumCover(item.albumId!, item.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Album cover updated')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to set cover: $e')),
+                      );
+                    }
+                  }
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.folder_open, color: AppTheme.primary),
               title: const Text('Move to Album'),
@@ -85,7 +110,8 @@ void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEnti
               onTap: () async {
                 Navigator.pop(context);
                 final repo = ref.read(localVaultRepositoryProvider);
-                await repo.moveToTrash(item.id);
+                final authMode = ref.read(authModeProvider);
+                await repo.moveToTrash(item.id, authMode: authMode);
                 ref.read(paginatedVaultProvider(currentAlbumId).notifier).refresh();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -127,7 +153,8 @@ void showMoveToAlbumDialog(BuildContext context, WidgetRef ref, VaultItemEntity 
                         onTap: () async {
                           Navigator.pop(context);
                           final repo = ref.read(localVaultRepositoryProvider);
-                          await repo.moveItemToAlbum(item.id, album.id);
+                          final authMode = ref.read(authModeProvider);
+                          await repo.moveItemToAlbum(item.id, album.id, authMode: authMode);
                           ref.read(paginatedVaultProvider(currentAlbumId).notifier).refresh();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(

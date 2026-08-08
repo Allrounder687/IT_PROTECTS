@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_theme.dart';
+import '../../../features/vault/state/vault_notifier.dart';
+import '../../../features/vault/presentation/encrypted_grid_widget.dart';
 
-class AlbumCard extends StatefulWidget {
+class AlbumCard extends ConsumerStatefulWidget {
   final String title;
   final int itemCount;
   final bool isLocked;
+  final int? coverItemId;
   final VoidCallback onTap;
 
   const AlbumCard({
@@ -13,14 +17,15 @@ class AlbumCard extends StatefulWidget {
     required this.title,
     required this.itemCount,
     this.isLocked = false,
+    this.coverItemId,
     required this.onTap,
   });
 
   @override
-  State<AlbumCard> createState() => _AlbumCardState();
+  ConsumerState<AlbumCard> createState() => _AlbumCardState();
 }
 
-class _AlbumCardState extends State<AlbumCard> {
+class _AlbumCardState extends ConsumerState<AlbumCard> {
   bool _isHovered = false;
 
   @override
@@ -58,15 +63,17 @@ class _AlbumCardState extends State<AlbumCard> {
                     children: [
                       Container(
                         color: AppTheme.surface,
-                        child: Icon(
-                          widget.isLocked ? Icons.lock : Icons.folder,
-                          color: widget.isLocked ? AppTheme.error.withAlpha(150) : AppTheme.primary.withAlpha(150),
-                          size: 48,
-                        ),
+                        child: (widget.coverItemId != null) 
+                            ? ref.watch(coverItemProvider(widget.coverItemId!)).when(
+                                data: (item) => item != null ? EncryptedGridWidget(item: item) : _buildFallbackIcon(),
+                                loading: () => _buildFallbackIcon(),
+                                error: (_, __) => _buildFallbackIcon(),
+                              )
+                            : _buildFallbackIcon(),
                       ),
                       if (widget.isLocked)
                         Container(
-                          color: Colors.black.withAlpha(100),
+                          color: Colors.black.withAlpha(150),
                           child: const Center(
                             child: Icon(Icons.lock_outline, color: Colors.white, size: 32),
                           ),
@@ -98,6 +105,14 @@ class _AlbumCardState extends State<AlbumCard> {
           ),
         ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95)),
       ),
+    );
+  }
+
+  Widget _buildFallbackIcon() {
+    return Icon(
+      widget.isLocked ? Icons.lock : Icons.folder,
+      color: widget.isLocked ? AppTheme.error.withAlpha(150) : AppTheme.primary.withAlpha(150),
+      size: 48,
     );
   }
 }

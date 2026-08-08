@@ -36,50 +36,90 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Logo Area
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-                child: Row(
+              SizedBox(
+                height: 104,
+                child: Stack(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primary.withValues(alpha: 0.5),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                    // Expanded content
+                    AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _isCollapsed ? 0.0 : 1.0,
+                      child: IgnorePointer(
+                        ignoring: _isCollapsed,
+                        child: ExcludeSemantics(
+                          excluding: _isCollapsed,
+                          child: Container(
+                            width: 260,
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    gradient: AppTheme.primaryGradient,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primary.withValues(alpha: 0.5),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(Icons.shield, size: 24, color: Colors.white),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    'IT PROTECTS',
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.5,
+                                    ),
+                                    overflow: TextOverflow.clip,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.menu_open, color: AppTheme.textSecondary),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isCollapsed = true;
+                                    });
+                                  },
+                                  tooltip: 'Collapse Sidebar',
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
-                      child: const Icon(Icons.shield, size: 24, color: Colors.white),
-                    ),
-                    if (!_isCollapsed) ...[
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          'IT PROTECTS',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                          overflow: TextOverflow.clip,
-                          maxLines: 1,
-                          softWrap: false,
                         ),
                       ),
-                    ],
-                    if (_isCollapsed)
-                      const Spacer(),
-                    IconButton(
-                      icon: Icon(_isCollapsed ? Icons.menu : Icons.menu_open, color: AppTheme.textSecondary),
-                      onPressed: () {
-                        setState(() {
-                          _isCollapsed = !_isCollapsed;
-                        });
-                      },
-                      tooltip: _isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
+                    ),
+                    // Collapsed content
+                    AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _isCollapsed ? 1.0 : 0.0,
+                      child: IgnorePointer(
+                        ignoring: !_isCollapsed,
+                        child: ExcludeSemantics(
+                          excluding: !_isCollapsed,
+                          child: Container(
+                            width: 88,
+                            padding: const EdgeInsets.fromLTRB(0, 24, 0, 32),
+                            alignment: Alignment.center,
+                            child: IconButton(
+                              icon: const Icon(Icons.menu, color: AppTheme.textSecondary),
+                              onPressed: () {
+                                setState(() {
+                                  _isCollapsed = false;
+                                });
+                              },
+                              tooltip: 'Expand Sidebar',
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -122,7 +162,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
               
               // Bottom Action (Lock)
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                 child: _SidebarItem(
                   icon: Icons.lock_outline,
                   selectedIcon: Icons.lock,
@@ -192,7 +232,7 @@ class _SidebarItemState extends State<_SidebarItem> {
           message: widget.isCollapsed ? widget.label : '',
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: EdgeInsets.symmetric(horizontal: widget.isCollapsed ? 12 : 16, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               gradient: widget.isSelected && !widget.isDestructive

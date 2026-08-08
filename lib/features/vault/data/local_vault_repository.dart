@@ -17,28 +17,41 @@ final localVaultRepositoryProvider = Provider<LocalVaultRepository>((ref) {
 
 class LocalVaultRepository {
   final Ref _ref;
-  Database? _database;
+  Database? _realDb;
+  Database? _decoyDb;
 
   LocalVaultRepository(this._ref);
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB();
-    return _database!;
+  Future<Database> getDatabase(AuthMode mode) async {
+    if (mode == AuthMode.real) {
+      if (_realDb != null) return _realDb!;
+      _realDb = await _initDB(mode);
+      return _realDb!;
+    } else {
+      if (_decoyDb != null) return _decoyDb!;
+      _decoyDb = await _initDB(mode);
+      return _decoyDb!;
+    }
   }
 
-  Future<Database> _initDB() async {
+  Future<Database> _initDB(AuthMode mode) async {
     final authRepo = _ref.read(authRepositoryProvider);
-    final dbPassword = await authRepo.getOrGenerateDatabaseKey();
-    
-    final isDesktop = (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+    final dbPassword = mode == AuthMode.real
+        ? await authRepo.getOrGenerateDatabaseKey()
+        : await authRepo.getOrGenerateDecoyDatabaseKey();
+
+    final isDesktop =
+        (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS);
     final factory = isDesktop ? databaseFactoryFfi : sqlcipher.databaseFactory;
 
     final dbPath = await factory.getDatabasesPath();
-    final path = p.join(dbPath, 'vault.db');
+    final path = p.join(
+      dbPath,
+      mode == AuthMode.real ? 'vault.db' : 'decoy_vault.db',
+    );
 
     Future<void> onCreate(db, version) async {
-          await db.execute('''
+      await db.execute('''
             CREATE TABLE albums (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -46,11 +59,12 @@ class LocalVaultRepository {
             type TEXT NOT NULL,
             is_locked INTEGER NOT NULL,
             storage_provider_id TEXT,
-            is_decoy_visible INTEGER NOT NULL
+            is_decoy_visible INTEGER NOT NULL,
+            cover_item_id INTEGER
           )
         ''');
 
-        await db.execute('''
+      await db.execute('''
           CREATE TABLE media_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             album_id INTEGER NOT NULL,
@@ -67,7 +81,7 @@ class LocalVaultRepository {
           )
         ''');
 
-        await db.execute('''
+      await db.execute('''
           CREATE TABLE intrusion_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp INTEGER NOT NULL,
@@ -76,7 +90,7 @@ class LocalVaultRepository {
           )
         ''');
 
-        await db.execute('''
+      await db.execute('''
           CREATE TABLE sync_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             item_id INTEGER NOT NULL,
@@ -88,42 +102,55 @@ class LocalVaultRepository {
             created_at TEXT NOT NULL
           )
         ''');
-        
-        final now = DateTime.now().millisecondsSinceEpoch;
-        await db.insert('albums', {
-          'name': 'Main Vault',
-          'created_at': now,
-          'type': AlbumType.mainVault.name,
-          'is_locked': 0,
-          'is_decoy_visible': 0,
-        });
-        await db.insert('albums', {
-          'name': 'Documents',
-          'created_at': now,
-          'type': AlbumType.documents.name,
-          'is_locked': 0,
-          'is_decoy_visible': 0,
-        });
-        await db.insert('albums', {
-          'name': 'Private Photos',
-          'created_at': now,
-          'type': AlbumType.privatePhotos.name,
-          'is_locked': 1,
-          'is_decoy_visible': 0,
-        });
-      }
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.insert('albums', {
+        'name': 'Main Vault',
+        'created_at': now,
+        'type': AlbumType.mainVault.name,
+        'is_locked': 0,
+        'is_decoy_visible': 0,
+      });
+      await db.insert('albums', {
+        'name': 'Documents',
+        'created_at': now,
+        'type': AlbumType.documents.name,
+        'is_locked': 0,
+        'is_decoy_visible': 0,
+      });
+      await db.insert('albums', {
+        'name': 'Private Photos',
+        'created_at': now,
+        'type': AlbumType.privatePhotos.name,
+        'is_locked': 1,
+        'is_decoy_visible': 0,
+      });
+    }
 
     Future<void> onUpgrade(db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('ALTER TABLE albums ADD COLUMN type TEXT NOT NULL DEFAULT "custom"');
-          await db.execute('ALTER TABLE albums ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0');
-          await db.execute('ALTER TABLE albums ADD COLUMN storage_provider_id TEXT');
-          await db.execute('ALTER TABLE albums ADD COLUMN is_decoy_visible INTEGER NOT NULL DEFAULT 0');
-          
-          await db.update('albums', {'type': AlbumType.mainVault.name, 'is_decoy_visible': 1}, where: 'name = ?', whereArgs: ['Main Vault']);
-        }
-        if (oldVersion < 3) {
-          await db.execute('''
+      if (oldVersion < 2) {
+        await db.execute(
+          'ALTER TABLE albums ADD COLUMN type TEXT NOT NULL DEFAULT "custom"',
+        );
+        await db.execute(
+          'ALTER TABLE albums ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0',
+        );
+        await db.execute(
+          'ALTER TABLE albums ADD COLUMN storage_provider_id TEXT',
+        );
+        await db.execute(
+          'ALTER TABLE albums ADD COLUMN is_decoy_visible INTEGER NOT NULL DEFAULT 0',
+        );
+
+        await db.update(
+          'albums',
+          {'type': AlbumType.mainVault.name, 'is_decoy_visible': 1},
+          where: 'name = ?',
+          whereArgs: ['Main Vault'],
+        );
+      }
+      if (oldVersion < 3) {
+        await db.execute('''
             CREATE TABLE sync_queue (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               item_id INTEGER NOT NULL,
@@ -135,26 +162,41 @@ class LocalVaultRepository {
               created_at TEXT NOT NULL
             )
           ''');
-        }
-        if (oldVersion < 4) {
-          await db.update('albums', {'is_decoy_visible': 0}, where: 'name IN (?, ?)', whereArgs: ['Main Vault', 'Documents']);
-          final maps = await db.query('albums', where: 'name = ?', whereArgs: ['Decoy Vault']);
-          if (maps.isEmpty) {
-            await db.insert('albums', {
-              'name': 'Decoy Vault',
-              'created_at': DateTime.now().millisecondsSinceEpoch,
-              'type': AlbumType.mainVault.name,
-              'is_locked': 0,
-              'is_decoy_visible': 1,
-            });
-          }
-        }
-        if (oldVersion < 5) {
-          await db.execute('ALTER TABLE media_items ADD COLUMN is_trashed INTEGER NOT NULL DEFAULT 0');
-          await db.execute('ALTER TABLE media_items ADD COLUMN deleted_at INTEGER');
-          await db.execute('ALTER TABLE media_items ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0');
+      }
+      if (oldVersion < 4) {
+        await db.update(
+          'albums',
+          {'is_decoy_visible': 0},
+          where: 'name IN (?, ?)',
+          whereArgs: ['Main Vault', 'Documents'],
+        );
+        final maps = await db.query(
+          'albums',
+          where: 'name = ?',
+          whereArgs: ['Decoy Vault'],
+        );
+        if (maps.isEmpty) {
+          await db.insert('albums', {
+            'name': 'Decoy Vault',
+            'created_at': DateTime.now().millisecondsSinceEpoch,
+            'type': AlbumType.mainVault.name,
+            'is_locked': 0,
+            'is_decoy_visible': 1,
+          });
         }
       }
+      if (oldVersion < 5) {
+        await db.execute(
+          'ALTER TABLE media_items ADD COLUMN is_trashed INTEGER NOT NULL DEFAULT 0',
+        );
+        await db.execute(
+          'ALTER TABLE media_items ADD COLUMN deleted_at INTEGER',
+        );
+        await db.execute(
+          'ALTER TABLE media_items ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0',
+        );
+      }
+    }
 
     final options = isDesktop
         ? OpenDatabaseOptions(
@@ -172,7 +214,7 @@ class LocalVaultRepository {
             onUpgrade: onUpgrade,
           );
 
-        try {
+    try {
       return await factory.openDatabase(path, options: options);
     } catch (e) {
       // If it fails to open (e.g. corrupted due to previous PRAGMA crash), delete and recreate
@@ -182,9 +224,14 @@ class LocalVaultRepository {
   }
 
   Future<int> getOrCreateMainAlbum(AuthMode authMode) async {
-    final db = await database;
+    final db = await getDatabase(authMode);
     final isDecoy = authMode == AuthMode.decoy ? 1 : 0;
-    final albums = await db.query('albums', where: 'is_decoy_visible = ?', whereArgs: [isDecoy], limit: 1);
+    final albums = await db.query(
+      'albums',
+      where: 'is_decoy_visible = ?',
+      whereArgs: [isDecoy],
+      limit: 1,
+    );
     if (albums.isEmpty) {
       return await db.insert('albums', {
         'name': authMode == AuthMode.decoy ? 'Decoy Vault' : 'Main Vault',
@@ -197,13 +244,18 @@ class LocalVaultRepository {
     return albums.first['id'] as int;
   }
 
-  Future<int> getOrCreateDecoyAlbum() async {
-    final db = await database;
-    final albums = await db.query('albums', where: 'name = ? AND is_decoy_visible = 1', whereArgs: ['Decoy Vault'], limit: 1);
+  Future<int> getOrCreateDecoyAlbum({required AuthMode authMode}) async {
+    final db = await getDatabase(authMode);
+    final albums = await db.query(
+      'albums',
+      where: 'name = ? AND is_decoy_visible = 1',
+      whereArgs: ['Decoy Vault'],
+      limit: 1,
+    );
     if (albums.isNotEmpty) {
       return albums.first['id'] as int;
     }
-    
+
     // Create one if it doesn't exist
     return await db.insert('albums', {
       'name': 'Decoy Vault',
@@ -215,9 +267,17 @@ class LocalVaultRepository {
     });
   }
 
-  Future<int> insertMediaItem(String name, String encryptedFilePath, String type, int size, String wrappedKey, String iv, {int? albumId}) async {
-    final db = await database;
-    final authMode = _ref.read(authModeProvider);
+  Future<int> insertMediaItem(
+    String name,
+    String encryptedFilePath,
+    String type,
+    int size,
+    String wrappedKey,
+    String iv, {
+    int? albumId,
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
     final targetAlbumId = albumId ?? await getOrCreateMainAlbum(authMode);
     final id = await db.insert('media_items', {
       'album_id': targetAlbumId,
@@ -231,25 +291,43 @@ class LocalVaultRepository {
     return id;
   }
 
-  Future<void> updateMediaItemKeys(int id, String wrappedKey, String iv) async {
-    final db = await database;
+  Future<void> updateMediaItemKeys(
+    int id,
+    String wrappedKey,
+    String iv, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
     await db.update(
       'media_items',
-      {
-        'wrapped_content_key': wrappedKey,
-        'iv': iv,
-      },
+      {'wrapped_content_key': wrappedKey, 'iv': iv},
       where: 'id = ?',
       whereArgs: [id],
     );
   }
 
-  Future<List<VaultItemEntity>> getMediaItems({int limit = 50, int offset = 0, AuthMode authMode = AuthMode.real, int? albumId}) async {
-    final db = await database;
-    String whereString = authMode == AuthMode.decoy 
+  Future<VaultItemEntity?> getMediaItem(int id, {required AuthMode authMode}) async {
+    final db = await getDatabase(authMode);
+    final List<Map<String, dynamic>> maps = await db.query(
+      'media_items',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isEmpty) return null;
+    return VaultItemEntity.fromMap(maps.first);
+  }
+
+  Future<List<VaultItemEntity>> getMediaItems({
+    int limit = 50,
+    int offset = 0,
+    AuthMode authMode = AuthMode.real,
+    int? albumId,
+  }) async {
+    final db = await getDatabase(authMode);
+    String whereString = authMode == AuthMode.decoy
         ? 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 1)'
         : 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 0)';
-    
+
     whereString += ' AND is_trashed = 0';
     List<Object?> whereArgs = [];
 
@@ -269,15 +347,22 @@ class LocalVaultRepository {
     return maps.map((e) => VaultItemEntity.fromMap(e)).toList();
   }
 
-  Future<List<VaultItemEntity>> searchMediaItems(String query, {int limit = 50, int offset = 0, AuthMode authMode = AuthMode.real}) async {
-    final db = await database;
+  Future<List<VaultItemEntity>> searchMediaItems(
+    String query, {
+    int limit = 50,
+    int offset = 0,
+    AuthMode authMode = AuthMode.real,
+  }) async {
+    final db = await getDatabase(authMode);
     String whereString = 'original_name LIKE ?';
     if (authMode == AuthMode.decoy) {
-      whereString += ' AND album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 1)';
+      whereString +=
+          ' AND album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 1)';
     } else {
-      whereString += ' AND album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 0)';
+      whereString +=
+          ' AND album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 0)';
     }
-    
+
     whereString += ' AND is_trashed = 0';
 
     final List<Map<String, dynamic>> maps = await db.query(
@@ -291,9 +376,13 @@ class LocalVaultRepository {
     return maps.map((e) => VaultItemEntity.fromMap(e)).toList();
   }
 
-  Future<List<VaultItemEntity>> getTrashedItems({int limit = 50, int offset = 0, AuthMode authMode = AuthMode.real}) async {
-    final db = await database;
-    String whereString = authMode == AuthMode.decoy 
+  Future<List<VaultItemEntity>> getTrashedItems({
+    int limit = 50,
+    int offset = 0,
+    AuthMode authMode = AuthMode.real,
+  }) async {
+    final db = await getDatabase(authMode);
+    String whereString = authMode == AuthMode.decoy
         ? 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 1)'
         : 'album_id IN (SELECT id FROM albums WHERE is_decoy_visible = 0)';
     whereString += ' AND is_trashed = 1';
@@ -308,37 +397,41 @@ class LocalVaultRepository {
     return maps.map((e) => VaultItemEntity.fromMap(e)).toList();
   }
 
-  Future<void> moveToTrash(int itemId) async {
-    final db = await database;
+  Future<void> moveToTrash(int itemId, {required AuthMode authMode}) async {
+    final db = await getDatabase(authMode);
     await db.update(
       'media_items',
-      {
-        'is_trashed': 1,
-        'deleted_at': DateTime.now().millisecondsSinceEpoch,
-      },
+      {'is_trashed': 1, 'deleted_at': DateTime.now().millisecondsSinceEpoch},
       where: 'id = ?',
       whereArgs: [itemId],
     );
   }
 
-  Future<void> restoreFromTrash(int itemId) async {
-    final db = await database;
+  Future<void> restoreFromTrash(
+    int itemId, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
     await db.update(
       'media_items',
-      {
-        'is_trashed': 0,
-        'deleted_at': null,
-      },
+      {'is_trashed': 0, 'deleted_at': null},
       where: 'id = ?',
       whereArgs: [itemId],
     );
   }
 
-  Future<void> deleteItemPermanently(int itemId) async {
-    final db = await database;
-    
+  Future<void> deleteItemPermanently(
+    int itemId, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
+
     // First, delete the file
-    final maps = await db.query('media_items', where: 'id = ?', whereArgs: [itemId]);
+    final maps = await db.query(
+      'media_items',
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
     if (maps.isNotEmpty) {
       final path = maps.first['encrypted_file_path'] as String?;
       if (path != null) {
@@ -355,8 +448,12 @@ class LocalVaultRepository {
     await db.delete('media_items', where: 'id = ?', whereArgs: [itemId]);
   }
 
-  Future<void> moveItemToAlbum(int itemId, int newAlbumId) async {
-    final db = await database;
+  Future<void> moveItemToAlbum(
+    int itemId,
+    int newAlbumId, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
     await db.update(
       'media_items',
       {'album_id': newAlbumId},
@@ -365,8 +462,12 @@ class LocalVaultRepository {
     );
   }
 
-  Future<void> toggleFavourite(int itemId, bool isFavourite) async {
-    final db = await database;
+  Future<void> toggleFavourite(
+    int itemId,
+    bool isFavourite, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
     await db.update(
       'media_items',
       {'is_favourite': isFavourite ? 1 : 0},
@@ -384,25 +485,59 @@ class LocalVaultRepository {
   }
 
   // --- Album Methods ---
+
+  Future<Album?> getAlbum(int id, {required AuthMode authMode}) async {
+    final db = await getDatabase(authMode);
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      '''
+      SELECT a.*, 
+        (SELECT COUNT(*) FROM media_items m WHERE m.album_id = a.id AND m.is_trashed = 0) as itemCount,
+        COALESCE(a.cover_item_id, (SELECT m.id FROM media_items m WHERE m.album_id = a.id AND m.is_trashed = 0 ORDER BY m.id DESC LIMIT 1)) as derivedCoverItemId
+      FROM albums a
+      WHERE a.id = ?
+    ''',
+      [id],
+    );
+    if (maps.isEmpty) return null;
+    return Album.fromMap(
+      maps.first,
+      maps.first['itemCount'] as int,
+      maps.first['derivedCoverItemId'] as int?,
+    );
+  }
+
   Future<List<Album>> loadAlbums({AuthMode authMode = AuthMode.real}) async {
-    final db = await database;
-    final String whereClause = authMode == AuthMode.decoy 
-        ? 'WHERE a.is_decoy_visible = 1' 
+    final db = await getDatabase(authMode);
+    final String whereClause = authMode == AuthMode.decoy
+        ? 'WHERE a.is_decoy_visible = 1'
         : 'WHERE a.is_decoy_visible = 0';
-    
+
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT a.*, 
-        (SELECT COUNT(*) FROM media_items m WHERE m.album_id = a.id) as itemCount 
+        (SELECT COUNT(*) FROM media_items m WHERE m.album_id = a.id AND m.is_trashed = 0) as itemCount,
+        COALESCE(a.cover_item_id, (SELECT m.id FROM media_items m WHERE m.album_id = a.id AND m.is_trashed = 0 ORDER BY m.id DESC LIMIT 1)) as derivedCoverItemId 
       FROM albums a
       $whereClause
       ORDER BY a.created_at ASC
     ''');
-    
-    return maps.map((e) => Album.fromMap(e, e['itemCount'] as int)).toList();
+
+    return maps
+        .map(
+          (e) => Album.fromMap(
+            e,
+            e['itemCount'] as int,
+            e['derivedCoverItemId'] as int?,
+          ),
+        )
+        .toList();
   }
 
-  Future<Album> createAlbum(String name, String? providerId) async {
-    final db = await database;
+  Future<Album> createAlbum(
+    String name,
+    String? providerId, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
     final id = await db.insert('albums', {
       'name': name,
       'created_at': DateTime.now().millisecondsSinceEpoch,
@@ -411,56 +546,76 @@ class LocalVaultRepository {
       'storage_provider_id': providerId,
       'is_decoy_visible': 0,
     });
-    
-    final maps = await db.query('albums', where: 'id = ?', whereArgs: [id]);
-    return Album.fromMap(maps.first, 0);
+
+    return (await getAlbum(id, authMode: authMode))!;
   }
 
-  Future<Album> updateAlbumLock(int id, bool locked) async {
-    final db = await database;
-    await db.update('albums', {'is_locked': locked ? 1 : 0}, where: 'id = ?', whereArgs: [id]);
-    
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT a.*, 
-        (SELECT COUNT(*) FROM media_items m WHERE m.album_id = a.id) as itemCount 
-      FROM albums a
-      WHERE a.id = ?
-    ''', [id]);
-    
-    return Album.fromMap(maps.first, maps.first['itemCount'] as int);
+  Future<Album> updateAlbumLock(
+    int id,
+    bool locked, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
+    await db.update(
+      'albums',
+      {'is_locked': locked ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    return (await getAlbum(id, authMode: authMode))!;
   }
 
-  Future<Album> updateAlbumName(int id, String newName) async {
-    final db = await database;
-    await db.update('albums', {'name': newName}, where: 'id = ?', whereArgs: [id]);
-    
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT a.*, 
-        (SELECT COUNT(*) FROM media_items m WHERE m.album_id = a.id) as itemCount 
-      FROM albums a
-      WHERE a.id = ?
-    ''', [id]);
-    
-    return Album.fromMap(maps.first, maps.first['itemCount'] as int);
+  Future<Album> updateAlbumName(
+    int id,
+    String newName, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
+    await db.update(
+      'albums',
+      {'name': newName},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    return (await getAlbum(id, authMode: authMode))!;
   }
 
-  Future<Album> updateAlbumProvider(int id, String? providerId) async {
-    final db = await database;
-    await db.update('albums', {'storage_provider_id': providerId}, where: 'id = ?', whereArgs: [id]);
-    
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT a.*, 
-        (SELECT COUNT(*) FROM media_items m WHERE m.album_id = a.id) as itemCount 
-      FROM albums a
-      WHERE a.id = ?
-    ''', [id]);
-    
-    return Album.fromMap(maps.first, maps.first['itemCount'] as int);
+  Future<Album> updateAlbumCover(
+    int id,
+    int coverItemId, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
+    await db.update(
+      'albums',
+      {'cover_item_id': coverItemId},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return (await getAlbum(id, authMode: authMode))!;
+  }
+
+  Future<Album> updateAlbumProvider(
+    int id,
+    String? providerId, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
+    await db.update(
+      'albums',
+      {'storage_provider_id': providerId},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    return (await getAlbum(id, authMode: authMode))!;
   }
 
   // --- Sync Queue Methods ---
-  Future<void> enqueueSyncJob(SyncJob job) async {
-    final db = await database;
+  Future<void> enqueueSyncJob(SyncJob job, {required AuthMode authMode}) async {
+    final db = await getDatabase(authMode);
     await db.insert('sync_queue', {
       'item_id': job.itemId,
       'album_id': job.albumId,
@@ -472,8 +627,11 @@ class LocalVaultRepository {
     });
   }
 
-  Future<List<SyncJob>> getPendingSyncJobs({int limit = 20}) async {
-    final db = await database;
+  Future<List<SyncJob>> getPendingSyncJobs({
+    required AuthMode authMode,
+    int limit = 20,
+  }) async {
+    final db = await getDatabase(authMode);
     final maps = await db.query(
       'sync_queue',
       orderBy: 'created_at ASC',
@@ -482,27 +640,75 @@ class LocalVaultRepository {
     return maps.map((m) => SyncJob.fromMap(m)).toList();
   }
 
-  Future<void> updateSyncJobError(int jobId, int retryCount, String? lastError) async {
-    final db = await database;
+  Future<void> updateSyncJobError(
+    int jobId,
+    int retryCount,
+    String? lastError, {
+    required AuthMode authMode,
+  }) async {
+    final db = await getDatabase(authMode);
     await db.update(
       'sync_queue',
-      {
-        'retry_count': retryCount,
-        'last_error': lastError,
-      },
+      {'retry_count': retryCount, 'last_error': lastError},
       where: 'id = ?',
       whereArgs: [jobId],
     );
   }
 
-  Future<void> deleteSyncJob(int jobId) async {
-    final db = await database;
+  Future<void> deleteSyncJob(int jobId, {required AuthMode authMode}) async {
+    final db = await getDatabase(authMode);
     await db.delete('sync_queue', where: 'id = ?', whereArgs: [jobId]);
   }
 
-  Future<void> deleteVault() async {
-    final db = await database;
-    
+  Future<void> migrateDecoyDatabase() async {
+    final realDb = await getDatabase(AuthMode.real);
+    final decoyDb = await getDatabase(AuthMode.decoy);
+
+    final decoyAlbums = await realDb.query(
+      'albums',
+      where: 'is_decoy_visible = 1',
+    );
+    if (decoyAlbums.isEmpty) return;
+
+    for (final album in decoyAlbums) {
+      final existing = await decoyDb.query(
+        'albums',
+        where: 'id = ?',
+        whereArgs: [album['id']],
+      );
+      if (existing.isEmpty) {
+        await decoyDb.insert('albums', album);
+      }
+
+      final mediaItems = await realDb.query(
+        'media_items',
+        where: 'album_id = ?',
+        whereArgs: [album['id']],
+      );
+      for (final item in mediaItems) {
+        final existingItem = await decoyDb.query(
+          'media_items',
+          where: 'id = ?',
+          whereArgs: [item['id']],
+        );
+        if (existingItem.isEmpty) {
+          await decoyDb.insert('media_items', item);
+        }
+      }
+
+      // Remove from real db
+      await realDb.delete(
+        'media_items',
+        where: 'album_id = ?',
+        whereArgs: [album['id']],
+      );
+      await realDb.delete('albums', where: 'id = ?', whereArgs: [album['id']]);
+    }
+  }
+
+  Future<void> deleteVault({required AuthMode authMode}) async {
+    final db = await getDatabase(authMode);
+
     // 1. Delete all encrypted files
     try {
       final mediaItems = await db.query('media_items');
@@ -518,20 +724,37 @@ class LocalVaultRepository {
         }
       }
     } catch (_) {}
-    
+
     // 2. Delete database file
-    final factory = (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS) 
-        ? databaseFactoryFfi 
+    final factory =
+        (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+        ? databaseFactoryFfi
         : sqlcipher.databaseFactory;
     final dbPath = await factory.getDatabasesPath();
-    final path = p.join(dbPath, 'vault.db');
-    
+    final path = p.join(
+      dbPath,
+      authMode == AuthMode.real ? 'vault.db' : 'decoy_vault.db',
+    );
+
     // Close the database before deleting
     await db.close();
-    _database = null;
-    
+    if (authMode == AuthMode.real)
+      _realDb = null;
+    else
+      _decoyDb = null;
+
     try {
       await factory.deleteDatabase(path);
-    } catch (_) {}
+      // Fallback for Windows file lock issues in sqflite_ffi
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {
+      try {
+        final file = File(path);
+        if (file.existsSync()) file.deleteSync();
+      } catch (_) {}
+    }
   }
 }
