@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:biometric_storage/biometric_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import '../state/auth_notifier.dart';
 
@@ -25,14 +24,6 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
   Future<void> _checkBiometrics() async {
     debugPrint('[BIOMETRIC_SETUP] checking biometrics...');
     bool canCheckBiometrics = false;
-    try {
-      final response = await BiometricStorage().canAuthenticate();
-      debugPrint('[BIOMETRIC_SETUP] BiometricStorage canAuthenticate: $response');
-      canCheckBiometrics = response == CanAuthenticateResponse.success;
-    } catch (e) {
-      debugPrint('[BIOMETRIC_SETUP] BiometricStorage exception: $e');
-      canCheckBiometrics = false;
-    }
     
     try {
       final auth = LocalAuthentication();
@@ -40,8 +31,10 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
       final isSupported = await auth.isDeviceSupported();
       final biometrics = await auth.getAvailableBiometrics();
       debugPrint('[BIOMETRIC_SETUP] LocalAuth canCheck=$canLocalCheck, supported=$isSupported, available=$biometrics');
+      canCheckBiometrics = canLocalCheck && isSupported;
     } catch (e) {
       debugPrint('[BIOMETRIC_SETUP] LocalAuth exception: $e');
+      canCheckBiometrics = false;
     }
     
     if (mounted) {
