@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/document_template.dart';
 import '../../vault/state/vault_notifier.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'dart:io';
 import '../../../core/presentation/components/custom_app_bar.dart';
 
@@ -68,13 +68,14 @@ class _DocumentEditScreenState extends ConsumerState<DocumentEditScreen> {
   }
 
   Future<void> _pickAttachment() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    const typeGroup = XTypeGroup(
+      label: 'Documents',
+      extensions: <String>['pdf', 'jpg', 'jpeg', 'png'],
     );
-    if (result != null && result.files.single.path != null) {
+    final file = await openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
+    if (file != null) {
       setState(() {
-        _attachedFile = File(result.files.single.path!);
+        _attachedFile = File(file.path);
       });
     }
   }
