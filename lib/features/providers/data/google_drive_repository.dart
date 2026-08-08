@@ -28,12 +28,18 @@ class GoogleDriveRepository implements StorageProvider {
   drive.DriveApi? _driveApi;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  late final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: Platform.isIOS 
-        ? '100219501471-7bq2p5l3j7vid9uuhr6e3ab4dgf3u7mh.apps.googleusercontent.com'
-        : null,
-    scopes: [drive.DriveApi.driveAppdataScope],
-  );
+  static bool _googleSignInInitialized = false;
+
+  Future<void> _initGoogleSignInIfNeeded() async {
+    if (!_googleSignInInitialized) {
+      await GoogleSignIn.instance.initialize(
+        clientId: Platform.isIOS 
+            ? '100219501471-7bq2p5l3j7vid9uuhr6e3ab4dgf3u7mh.apps.googleusercontent.com'
+            : null,
+      );
+      _googleSignInInitialized = true;
+    }
+  }
 
   // For Windows / TV Device Flow
   final _desktopClientId = auth_io.ClientId(
@@ -51,10 +57,18 @@ class GoogleDriveRepository implements StorageProvider {
   @override
   Future<void> authenticate({void Function(String url, String code)? onDeviceCodePrompt}) async {
     if (Platform.isAndroid || Platform.isIOS) {
-      final account = await _googleSignIn.signIn();
+      await _initGoogleSignInIfNeeded();
+      final account = await GoogleSignIn.instance.authenticate();
       if (account == null) throw Exception("User canceled sign in");
       
-      final authHeaders = await account.authHeaders;
+      final clientAuth = await account.authorizationClient.authorizeScopes([drive.DriveApi.driveAppdataScope]);
+      final accessToken = clientAuth.accessToken;
+      if (accessToken == null) throw Exception("User did not grant drive scope");
+
+      final authHeaders = {
+        'Authorization': 'Bearer $accessToken',
+        'X-Goog-AuthUser': '0',
+      };
       final authenticateClient = GoogleAuthClient(authHeaders);
       _driveApi = drive.DriveApi(authenticateClient);
     } else {
@@ -99,10 +113,18 @@ class GoogleDriveRepository implements StorageProvider {
   Future<bool> isAuthenticated() async {
     if (Platform.isAndroid || Platform.isIOS) {
       try {
-        final account = await _googleSignIn.signInSilently();
+        await _initGoogleSignInIfNeeded();
+        final account = await GoogleSignIn.instance.attemptLightweightAuthentication();
         if (account == null) return false;
         
-        final authHeaders = await account.authHeaders;
+        final clientAuth = await account.authorizationClient.authorizationForScopes([drive.DriveApi.driveAppdataScope]);
+        final accessToken = clientAuth?.accessToken;
+        if (accessToken == null) return false;
+        
+        final authHeaders = {
+          'Authorization': 'Bearer $accessToken',
+          'X-Goog-AuthUser': '0',
+        };
         final authenticateClient = GoogleAuthClient(authHeaders);
         _driveApi = drive.DriveApi(authenticateClient);
         return true;
