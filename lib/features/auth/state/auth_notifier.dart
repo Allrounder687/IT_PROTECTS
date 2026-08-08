@@ -4,6 +4,7 @@ import 'package:biometric_storage/biometric_storage.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_use_case.dart';
 import '../../settings/state/settings_providers.dart';
+import '../../settings/state/intruder_log_provider.dart';
 import '../../../core/providers/auth_mode_provider.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../vault/data/local_vault_repository.dart';
@@ -273,6 +274,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> _logIntruderAlert() async {
     try {
+      ref.read(intruderLogProvider.notifier).addLog();
+      
       final cameras = await availableCameras();
       final frontCamera = cameras.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.front,

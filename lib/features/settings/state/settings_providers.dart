@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/settings_models.dart';
+import '../../providers/state/sync_status_notifier.dart';
 
 final prefsProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Override in main() after init');
@@ -76,6 +77,9 @@ class CloudSyncSettingsNotifier extends Notifier<CloudSyncSettings> {
     final prefs = ref.read(prefsProvider);
     await prefs.setBool('sync_auto', enabled);
     state = state.copyWith(autoSyncEnabled: enabled);
+    if (enabled) {
+      ref.read(syncStatusProvider.notifier).markAsQueued();
+    }
   }
 
   Future<void> toggleWifiOnly(bool enabled) async {

@@ -77,6 +77,7 @@ class LocalVaultRepository {
             is_trashed INTEGER NOT NULL DEFAULT 0,
             deleted_at INTEGER,
             is_favourite INTEGER NOT NULL DEFAULT 0,
+            encrypted_metadata TEXT,
             FOREIGN KEY (album_id) REFERENCES albums (id)
           )
         ''');
@@ -196,11 +197,21 @@ class LocalVaultRepository {
           'ALTER TABLE media_items ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0',
         );
       }
+      if (oldVersion < 6) {
+        await db.execute(
+          'ALTER TABLE media_items ADD COLUMN encrypted_metadata TEXT',
+        );
+      }
+      if (oldVersion < 7) {
+        await db.execute(
+          'ALTER TABLE albums ADD COLUMN cover_item_id INTEGER',
+        );
+      }
     }
 
     final options = isDesktop
         ? OpenDatabaseOptions(
-            version: 5,
+            version: 7,
             onConfigure: (db) async {
               await db.execute("PRAGMA key = '';");
             },
@@ -208,7 +219,7 @@ class LocalVaultRepository {
             onUpgrade: onUpgrade,
           )
         : sqlcipher.SqlCipherOpenDatabaseOptions(
-            version: 5,
+            version: 7,
             password: dbPassword,
             onCreate: onCreate,
             onUpgrade: onUpgrade,
@@ -267,6 +278,25 @@ class LocalVaultRepository {
     });
   }
 
+  Future<int> getOrCreateDocumentsAlbum(AuthMode authMode) async {
+    final db = await getDatabase(authMode);
+    final maps = await db.query(
+      'albums',
+      where: 'type = ?',
+      whereArgs: [AlbumType.documents.name],
+    );
+    if (maps.isNotEmpty) {
+      return maps.first['id'] as int;
+    }
+    return await db.insert('albums', {
+      'name': 'Documents',
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+      'type': AlbumType.documents.name,
+      'is_locked': 0,
+      'is_decoy_visible': 0,
+    });
+  }
+
   Future<int> insertMediaItem(
     String name,
     String encryptedFilePath,
@@ -276,6 +306,7 @@ class LocalVaultRepository {
     String iv, {
     int? albumId,
     required AuthMode authMode,
+    String? encryptedMetadata,
   }) async {
     final db = await getDatabase(authMode);
     final targetAlbumId = albumId ?? await getOrCreateMainAlbum(authMode);
@@ -287,6 +318,7 @@ class LocalVaultRepository {
       'size': size,
       'wrapped_content_key': wrappedKey,
       'iv': iv,
+      'encrypted_metadata': encryptedMetadata,
     });
     return id;
   }
@@ -460,6 +492,34 @@ class LocalVaultRepository {
       where: 'id = ?',
       whereArgs: [itemId],
     );
+  }
+
+  Future<void> transferItemToVault({
+    required VaultItemEntity item,
+    required String newWrappedKey,
+    required String newIv,
+    required int newAlbumId,
+    required AuthMode fromMode,
+    required AuthMode toMode,
+  }) async {
+    final fromDb = await getDatabase(fromMode);
+    final toDb = await getDatabase(toMode);
+
+    await toDb.insert('media_items', {
+      'album_id': newAlbumId,
+      'original_name': item.originalName,
+      'file_path': item.filePath,
+      'wrapped_content_key': newWrappedKey,
+      'iv': newIv,
+      'size': item.size,
+      'mime_type': item.mimeType,
+      'created_at': item.createdAt.millisecondsSinceEpoch,
+      'is_favourite': item.isFavourite ? 1 : 0,
+      'is_trashed': item.isTrashed ? 1 : 0,
+      'deleted_at': item.deletedAt?.millisecondsSinceEpoch,
+    });
+
+    await fromDb.delete('media_items', where: 'id = ?', whereArgs: [item.id]);
   }
 
   Future<void> toggleFavourite(
@@ -704,6 +764,23 @@ class LocalVaultRepository {
       );
       await realDb.delete('albums', where: 'id = ?', whereArgs: [album['id']]);
     }
+  }
+
+  Future<Map<String, int>> getStorageStats(AuthMode authMode) async {
+    final db = await getDatabase(authMode);
+    final res = await db.rawQuery('SELECT SUM(size) as total FROM media_items');
+    final totalOriginal = Sqflite.firstIntValue(res) ?? 0;
+    
+    // In a real app we'd query the file system. For this demo, we estimate:
+    // If Space Saver is toggled on, local size is ~20% of original. 
+    // Otherwise, local size is exactly original + 28 bytes (encryption overhead) per item.
+    final countRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM media_items');
+    final count = Sqflite.firstIntValue(countRes) ?? 0;
+    
+    return {
+      'totalOriginal': totalOriginal,
+      'itemCount': count,
+    };
   }
 
   Future<void> deleteVault({required AuthMode authMode}) async {

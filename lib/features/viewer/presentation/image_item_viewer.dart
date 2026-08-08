@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../vault/domain/vault_item_entity.dart';
 import '../state/media_viewer_state.dart';
+import '../../settings/state/settings_providers.dart';
+import '../../settings/domain/settings_models.dart';
 
 class ImageItemViewer extends ConsumerStatefulWidget {
   final VaultItemEntity item;
@@ -66,6 +68,7 @@ class _ImageItemViewerState extends ConsumerState<ImageItemViewer> with SingleTi
   @override
   Widget build(BuildContext context) {
     final sessionState = ref.watch(playbackSessionProvider(widget.item));
+    final playbackSettings = ref.watch(playbackPrivacySettingsProvider);
 
     return GestureDetector(
       onDoubleTapDown: _handleDoubleTapDown,
@@ -85,7 +88,7 @@ class _ImageItemViewerState extends ConsumerState<ImageItemViewer> with SingleTi
                 ),
               );
             },
-            loading: () => _buildSkeleton(),
+            loading: () => _buildSkeleton(playbackSettings),
             error: (e, st) => Center(child: Text('Error decrypting image: $e', style: const TextStyle(color: Colors.red))),
           ),
         ),
@@ -93,7 +96,7 @@ class _ImageItemViewerState extends ConsumerState<ImageItemViewer> with SingleTi
     );
   }
 
-  Widget _buildSkeleton() {
+  Widget _buildSkeleton(PlaybackPrivacySettings settings) {
     return Hero(
       tag: widget.item.id.toString(),
       child: Container(
@@ -112,7 +115,7 @@ class _ImageItemViewerState extends ConsumerState<ImageItemViewer> with SingleTi
             children: [
               const CircularProgressIndicator(color: Colors.white54),
               const SizedBox(height: 16),
-              Text('Decrypting\n${widget.item.originalName}...', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
+              Text('Decrypting\n${settings.showFilenames ? widget.item.originalName : 'Secure Image'}...', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
             ],
           ),
         ),

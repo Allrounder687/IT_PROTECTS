@@ -24,6 +24,11 @@ When working on the IT_PROTECTS project, all agents MUST adhere to the following
 ## 4. Media & Document Viewers
 - **Video:** Use `media_kit` and `media_kit_video`. It is the definitive choice for cross-platform GPU-backed playback in this app, supporting mobile, desktop, and large screens without freezing the UI.
 - **Documents:** Use `syncfusion_flutter_pdfviewer` for rich, multi-platform document viewing over minimal alternatives.
+- **Autofill Integration:** Any document or credentials UI MUST wrap its TextFields in an `AutofillGroup` and use appropriate `AutofillHints` to ensure OS password managers can securely parse the form.
+
+## 5. Decoy Vault Plausible Deniability
+- **Physical Separation:** The Decoy Vault MUST use a physically separate database file (`decoy_vault.db`) from the main vault (`vault.db`). Never rely solely on an `is_decoy` column in a single unified database.
+- **Data Transfer:** Moving an item to the Decoy Vault requires copying the encrypted row into `decoy_vault.db` and securely deleting it from `vault.db`. Do not simply reassign an `album_id`.
 
 ## 5. Riverpod Clean Architecture
 - **State Management:** Always use Riverpod 2.x `Notifier` and `AsyncNotifier`. Avoid legacy `StateNotifier`.
@@ -46,3 +51,6 @@ When working on the IT_PROTECTS project, all agents MUST adhere to the following
   - **Desktop / TV:** Use OAuth 2.0 Device Authorization Grant flow or a `url_launcher` loopback flow.
 - **Redirect URIs:** All standard OAuth providers (Dropbox, Azure) MUST be configured with the custom scheme: `com.syeds.itprotects://oauthredirect`.
 - **Zero-Knowledge Encryption:** Files synchronized to ANY cloud provider MUST be encrypted as `.enc` files before transmission. NEVER upload plaintext metadata or files.
+
+## 8. Debugging & Tooling
+- **Rooted Debugging:** The primary Android test device is rooted and has rooted debugging enabled. When debugging on this device, ALWAYS initialize with `adb root`. Use this root access to inspect the private app sandbox (`/data/data/com.syeds.itprotects/`), directly read the `vault.db` SQLite database, and modify `shared_prefs` XML files for rapid testing and troubleshooting instead of relying heavily on debug prints.

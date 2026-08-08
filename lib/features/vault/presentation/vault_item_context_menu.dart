@@ -203,9 +203,9 @@ Future<void> executeSafeSend(BuildContext context, WidgetRef ref, VaultItemEntit
       masterKey,
     );
     
-    // 3. Save to cache
+    // 3. Save to cache with original filename
     final tempDir = await getTemporaryDirectory();
-    final tempFile = File('${tempDir.path}/');
+    final tempFile = File('${tempDir.path}/${item.originalName}');
     await tempFile.writeAsBytes(decryptedBytes);
     
     // 4. Share
@@ -221,7 +221,12 @@ Future<void> executeSafeSend(BuildContext context, WidgetRef ref, VaultItemEntit
     }
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Re-import this item from device gallery; current file handle is invalid.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
     }
   }
 }

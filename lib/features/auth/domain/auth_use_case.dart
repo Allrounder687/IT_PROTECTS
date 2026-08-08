@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,10 +17,18 @@ class AuthUseCase {
   final _aesGcm = AesGcm.with256bits();
 
   Future<SecretKey> deriveKek(String pin, List<int> salt) async {
-    return await _argon2.deriveKeyFromPassword(
-      password: pin,
-      nonce: salt,
-    );
+    return await compute((Map<String, dynamic> args) async {
+      final argon2 = Argon2id(
+        memory: 32000, 
+        iterations: 2,
+        parallelism: 2,
+        hashLength: 32, 
+      );
+      return await argon2.deriveKeyFromPassword(
+        password: args['pin'] as String,
+        nonce: args['salt'] as List<int>,
+      );
+    }, {'pin': pin, 'salt': salt});
   }
 
   Future<List<int>> generateRandomKey() async {

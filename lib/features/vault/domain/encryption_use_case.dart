@@ -91,4 +91,24 @@ class EncryptionUseCase {
       secretKey: contentKey,
     );
   }
+
+  /// Encrypts string metadata directly using the Master Key.
+  Future<String> encryptMetadata(String metadata, SecretKey masterKey) async {
+    final bytes = utf8.encode(metadata);
+    final box = await _aesGcm.encrypt(bytes, secretKey: masterKey);
+    return base64Encode(box.concatenation());
+  }
+
+  /// Decrypts string metadata directly using the Master Key.
+  Future<String> decryptMetadata(String encryptedMetadataBase64, SecretKey masterKey) async {
+    final encryptedBytes = base64Decode(encryptedMetadataBase64);
+    final macLength = _aesGcm.macAlgorithm.macLength;
+    final box = SecretBox.fromConcatenation(
+      encryptedBytes,
+      nonceLength: _aesGcm.nonceLength,
+      macLength: macLength,
+    );
+    final decryptedBytes = await _aesGcm.decrypt(box, secretKey: masterKey);
+    return utf8.decode(decryptedBytes);
+  }
 }

@@ -44,6 +44,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
   }
 
   void _verifyPin() {
+    setState(() => _pin = '');
     ref.read(authNotifierProvider.notifier).unlockVault(_pin);
   }
 
@@ -95,9 +96,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
         context.go('/vault');
       } else if (next == AuthState.error) {
         _triggerShake();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Incorrect PIN')),
-        );
+        // Since we clear _pin in _verifyPin, the user can start typing immediately
       }
     });
 
@@ -124,8 +123,11 @@ class _PinScreenState extends ConsumerState<PinScreen> {
           children: [
             const Spacer(),
             Text(
-              'Enter PIN for IT PROTECTS',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+              _isError ? 'Incorrect PIN' : 'Enter PIN for IT PROTECTS',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _isError ? Colors.redAccent : Colors.white,
+              ),
             ).animate(key: ValueKey(_shakeKey))
               .shake(hz: 8, curve: Curves.easeInOut),
             const SizedBox(height: 32),
@@ -230,33 +232,31 @@ class _PinScreenState extends ConsumerState<PinScreen> {
   }
 
   Widget _buildKey(String value) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _onKeyPress(value),
-      child: SizedBox(
-        width: 80,
-        height: 80,
-        child: Center(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white),
-          ),
-        ),
+    return TextButton(
+      onPressed: () => _onKeyPress(value),
+      style: TextButton.styleFrom(
+        shape: const CircleBorder(),
+        minimumSize: const Size(72, 72),
+        padding: const EdgeInsets.all(16),
+        foregroundColor: Colors.white,
+      ),
+      child: Text(
+        value,
+        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
       ),
     );
   }
 
   Widget _buildActionKey({required IconData icon, required VoidCallback? onPressed, Color? color}) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: onPressed != null ? (_) => onPressed() : null,
-      child: SizedBox(
-        width: 80,
-        height: 80,
-        child: Center(
-          child: Icon(icon, size: 28, color: color ?? Colors.white70),
-        ),
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        shape: const CircleBorder(),
+        minimumSize: const Size(72, 72),
+        padding: const EdgeInsets.all(16),
+        foregroundColor: color ?? Colors.white70,
       ),
+      child: Icon(icon, size: 28),
     );
   }
 }

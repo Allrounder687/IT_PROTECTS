@@ -12,8 +12,9 @@ import '../../../core/presentation/components/vault_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../state/albums_notifier.dart';
 import '../../vault/presentation/vault_item_context_menu.dart';
-
-class AlbumDetailScreen extends ConsumerStatefulWidget {
+import '../../documents/presentation/document_edit_screen.dart';
+import '../../documents/domain/document_template.dart';
+import '../domain/album.dart';
   final String albumId;
 
   const AlbumDetailScreen({super.key, required this.albumId});
@@ -45,7 +46,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     }
   }
 
-  void _showAddBottomSheet() {
+  void _showAddBottomSheet(Album? album) {
+    if (album?.type == AlbumType.documents) {
+      _showDocumentTypeBottomSheet();
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.surface,
@@ -96,6 +102,64 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     );
   }
 
+  void _showDocumentTypeBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Text('Select Document Type', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.credit_card, color: AppTheme.primary),
+                  title: const Text('Credit Card'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/document/edit/${widget.albumId}/${DocumentTemplateType.creditCard.name}');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.account_balance, color: AppTheme.primary),
+                  title: const Text('Bank Account'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/document/edit/${widget.albumId}/${DocumentTemplateType.bankAccount.name}');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.badge, color: AppTheme.primary),
+                  title: const Text('Government ID'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/document/edit/${widget.albumId}/${DocumentTemplateType.governmentId.name}');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.description, color: AppTheme.primary),
+                  title: const Text('Other Secure Document'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/document/edit/${widget.albumId}/${DocumentTemplateType.custom.name}');
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final paginatedStateAsync = ref.watch(paginatedVaultProvider(int.parse(widget.albumId)));
@@ -110,7 +174,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Upload to this album',
-            onPressed: _showAddBottomSheet,
+            onPressed: () => _showAddBottomSheet(album),
           ),
         ],
         onSearchChanged: (value) {
@@ -124,8 +188,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
             VaultHeroHeader(
               title: album?.name ?? 'Album',
               subtitle: '${album?.itemCount ?? 0} items secured.',
-              onUploadPressed: _showAddBottomSheet,
-              uploadButtonLabel: 'Upload to this album',
+              onUploadPressed: () => _showAddBottomSheet(album),
+              uploadButtonLabel: album?.type == AlbumType.documents ? 'Add Document' : 'Upload to this album',
             ),
             Expanded(
               child: paginatedStateAsync.when(
@@ -146,6 +210,39 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                           ),
                         ],
                       ).animate().fade(duration: 400.ms).scale(begin: const Offset(0.9, 0.9)),
+                    );
+                  }
+
+                  if (album?.type == AlbumType.documents) {
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                      itemCount: items.length + (paginatedState.isLoadingNext ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= items.length) {
+                          return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+                        }
+                        final item = items[index];
+                        return Card(
+                          color: AppTheme.surfaceVariant.withValues(alpha: 0.3),
+                          margin: const EdgeInsets.only(bottom: 8.0),
+                          child: ListTile(
+                            leading: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.description, color: AppTheme.primary),
+                            ),
+                            title: Text(item.originalName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Secure Document'),
+                            onTap: () => context.push('/document/viewer/${item.id}'),
+                            onLongPress: () => showVaultItemContextMenu(context, ref, item, currentAlbumId: int.parse(widget.albumId)),
+                          ),
+                        ).animate().fade(delay: ((index % 10) * 50).ms, duration: 300.ms).slideY(begin: 0.1, end: 0);
+                      },
                     );
                   }
 
@@ -176,7 +273,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddBottomSheet,
+        onPressed: () => _showAddBottomSheet(album),
         child: const Icon(Icons.add),
       ).animate().scale(delay: 400.ms, duration: 400.ms, curve: Curves.easeOutBack),
     );

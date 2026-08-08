@@ -23,6 +23,9 @@ import '../../features/settings/presentation/change_pin_screen.dart';
 import '../../features/settings/presentation/intruder_logs_screen.dart';
 import '../../features/trash/presentation/trash_screen.dart';
 import '../../features/viewer/presentation/media_viewer_screen.dart';
+import '../../features/documents/presentation/document_edit_screen.dart';
+import '../../features/documents/presentation/document_viewer_screen.dart';
+import '../../features/documents/domain/document_template.dart';
 import 'main_scaffold.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -103,7 +106,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       path: '/viewer/:index',
       builder: (context, state) {
         final index = int.tryParse(state.pathParameters['index'] ?? '0') ?? 0;
-        return MediaViewerScreen(initialIndex: index);
+        final isDirect = state.uri.queryParameters['isDirect'] == 'true';
+        return MediaViewerScreen(initialIndex: index, isDirectItemId: isDirect);
+      },
+    ),
+    GoRoute(
+      path: '/document/new',
+      builder: (context, state) => const DocumentEditScreen(),
+    ),
+    GoRoute(
+      path: '/document/viewer/:itemId',
+      builder: (context, state) {
+        final itemId = state.pathParameters['itemId']!;
+        return DocumentViewerScreen(itemId: itemId);
       },
     ),
     StatefulShellRoute.indexedStack(

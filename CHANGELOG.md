@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added (Phase 9: Documents Vault & Autofill Foundation)
+- **Document Creation**: Added a new `DocumentEditScreen` allowing users to create manual documents.
+- **Templates**: Supports predefined templates for `Government ID`, `Credit Card`, `Bank Account`, and generic custom documents, pre-populating fields automatically.
+- **Autofill Integration**: Fields are wrapped in a Flutter `AutofillGroup` and use `AutofillHints` (e.g. `AutofillHints.creditCardNumber`, `AutofillHints.name`) so the host OS can automatically read and fill fields securely.
+- **Dashboard Integration**: The main FAB on the vault dashboard now opens a sleek bottom sheet offering the choice between "Import Photo/Video" and "Add Document".
+- **Storage**: Document metadata is JSON-encoded, encrypted with the master session key, and stored securely as `encrypted_metadata` in the `media_items` table. A raw PDF or Image can also be optionally attached to the document.
+
+### Changed (Phase 8: Playback Privacy, Search, Intruder Alerts, and Decoy Mode)
+- **Playback Privacy**: `ImageItemViewer` and `VideoItemViewer` now respect your privacy settings. Filenames and metadata overlays can be hidden. The viewers also adapt to `Immersive`, `Safe` (reduced brightness), and `Minimal` playback modes.
+- **Search Integration**: The `VaultDashboardScreen` now has a fully functional debounced search bar that queries the encrypted database, instantly displaying filtered items without sacrificing performance.
+- **Intruder Alerts**: The `AuthNotifier` now records actual failed PIN attempts with timestamp and device OS into an unencrypted `SharedPreferences` log, which can be viewed and cleared securely from the Intruder Alerts screen.
+- **Decoy Mode Fix**: Resolved the critical data loss bug when marking items as Decoy. Instead of just setting an invalid `album_id` in `vault.db`, I implemented a secure `transferItemToVault` method that extracts the row from `vault.db` and inserts it directly into `decoy_vault.db`.
+
 ### Changed (Albums UX Improvements)
 - **Album Counts**: Fixed album counts to exclude trashed items and dynamically update on sync completion.
 - **Album Covers**: Introduced `cover_item_id` to database. Albums now automatically display the most recent item as a cover, or allow manual selection via item context menu.

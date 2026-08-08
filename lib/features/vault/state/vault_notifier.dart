@@ -9,6 +9,8 @@ import '../../providers/domain/sync_job.dart';
 import '../../settings/state/settings_providers.dart';
 import '../../providers/state/sync_status_notifier.dart';
 import '../../../core/providers/session_provider.dart';
+import '../../documents/domain/document_template.dart';
+import '../../core/utils/logging.dart';
 
 import '../domain/migration_use_case.dart';
 import '../../../core/providers/auth_mode_provider.dart';
@@ -65,6 +67,67 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
       encryptionResult.iv,
       albumId: albumId,
       authMode: authMode,
+    );
+    
+    final cloudSettings = ref.read(cloudSyncSettingsProvider);
+    if (cloudSettings.defaultProviderId != null && cloudSettings.defaultProviderId!.isNotEmpty) {
+      final job = SyncJob(
+        itemId: id,
+        operation: SyncOperation.upload,
+        targetProviderId: cloudSettings.defaultProviderId!,
+        createdAt: DateTime.now(),
+      );
+      await localRepo.enqueueSyncJob(job, authMode: authMode);
+      ref.read(syncStatusProvider.notifier).markAsQueued();
+    }
+
+    ref.invalidateSelf();
+  }
+
+  Future<void> importDocument({
+    int? albumId,
+    required DocumentTemplate template,
+    String? filePath,
+  }) async {
+    final encUseCase = ref.read(encryptionUseCaseProvider);
+    final localRepo = ref.read(localVaultRepositoryProvider);
+    final masterKeyBytes = ref.read(sessionProvider);
+    if (masterKeyBytes == null) throw Exception("Master key not found in session");
+    final masterKey = await encUseCase.importMasterKey(masterKeyBytes);
+
+    List<int> fileBytes = [];
+    String originalName = template.title;
+    String type = 'document';
+
+    if (filePath != null) {
+      final file = XFile(filePath);
+      fileBytes = await file.readAsBytes();
+      originalName = file.name;
+    }
+
+    // Encrypt file if attached, otherwise just create an empty CEK encryption
+    final encryptionResult = await encUseCase.encryptDataWithCek(fileBytes, masterKey);
+    
+    String savedPath = '';
+    if (fileBytes.isNotEmpty) {
+      final fileName = '${_uuid.v4()}.enc';
+      savedPath = await localRepo.saveEncryptedFile(encryptionResult.encryptedDataBlob, fileName);
+    }
+
+    final jsonStr = template.toJsonString();
+    final encryptedMetadata = await encUseCase.encryptMetadata(jsonStr, masterKey);
+    
+    final authMode = ref.read(authModeProvider);
+    final id = await localRepo.insertMediaItem(
+      originalName, 
+      savedPath, 
+      type, 
+      fileBytes.length,
+      encryptionResult.wrappedContentKey,
+      encryptionResult.iv,
+      albumId: albumId,
+      authMode: authMode,
+      encryptedMetadata: encryptedMetadata,
     );
     
     final cloudSettings = ref.read(cloudSyncSettingsProvider);

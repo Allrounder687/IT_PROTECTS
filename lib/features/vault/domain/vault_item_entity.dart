@@ -10,6 +10,7 @@ class VaultItemEntity {
   final bool isTrashed;
   final int? deletedAt;
   final bool isFavourite;
+  final String? encryptedMetadata;
 
   VaultItemEntity({
     required this.id,
@@ -23,6 +24,7 @@ class VaultItemEntity {
     this.isTrashed = false,
     this.deletedAt,
     this.isFavourite = false,
+    this.encryptedMetadata,
   });
 
   factory VaultItemEntity.fromMap(Map<String, dynamic> map) {
@@ -38,6 +40,7 @@ class VaultItemEntity {
       isTrashed: map['is_trashed'] == 1,
       deletedAt: map['deleted_at'],
       isFavourite: map['is_favourite'] == 1,
+      encryptedMetadata: map['encrypted_metadata'],
     );
   }
 }

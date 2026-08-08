@@ -102,8 +102,14 @@ class _DecoyAuthDialogState extends ConsumerState<DecoyAuthDialog> {
       final repo = ref.read(localVaultRepositoryProvider);
       final decoyAlbumId = await repo.getOrCreateDecoyAlbum(authMode: AuthMode.decoy);
       
-      await repo.updateMediaItemKeys(widget.item.id, newWrappedKeyBase64, newIvBase64, authMode: AuthMode.real);
-      await repo.moveItemToAlbum(widget.item.id, decoyAlbumId, authMode: AuthMode.real);
+      await repo.transferItemToVault(
+        item: widget.item,
+        newWrappedKey: newWrappedKeyBase64,
+        newIv: newIvBase64,
+        newAlbumId: decoyAlbumId,
+        fromMode: AuthMode.real,
+        toMode: AuthMode.decoy,
+      );
 
       if (mounted) {
         Navigator.pop(context, true);

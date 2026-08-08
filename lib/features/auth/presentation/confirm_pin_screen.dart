@@ -51,6 +51,7 @@ class _ConfirmPinScreenState extends ConsumerState<ConfirmPinScreen> {
       setState(() {
         _isError = true;
         _shakeKey += 1.0;
+        _pin = ''; // Instantly clear input on mismatch
       });
     }
   }
@@ -144,7 +145,7 @@ class _ConfirmPinScreenState extends ConsumerState<ConfirmPinScreen> {
               _buildActionKey(icon: Icons.backspace, onPressed: _onDelete),
               _buildKey('0'),
               isLoading
-                  ? const CircularProgressIndicator()
+                  ? const Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())
                   : _buildActionKey(
                       icon: Icons.check,
                       onPressed: _pin.length == 6 ? _verifyPin : null,
@@ -162,7 +163,8 @@ class _ConfirmPinScreenState extends ConsumerState<ConfirmPinScreen> {
       onPressed: () => _onKeyPress(value),
       style: TextButton.styleFrom(
         shape: const CircleBorder(),
-        padding: const EdgeInsets.all(24),
+        minimumSize: const Size(72, 72),
+        padding: const EdgeInsets.all(16),
         foregroundColor: Colors.white,
       ),
       child: Text(
@@ -177,7 +179,8 @@ class _ConfirmPinScreenState extends ConsumerState<ConfirmPinScreen> {
       onPressed: onPressed,
       style: TextButton.styleFrom(
         shape: const CircleBorder(),
-        padding: const EdgeInsets.all(24),
+        minimumSize: const Size(72, 72),
+        padding: const EdgeInsets.all(16),
         foregroundColor: color ?? Colors.white70,
       ),
       child: Icon(icon, size: 28),

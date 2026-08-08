@@ -15,8 +15,8 @@ class AlbumsNotifier extends AsyncNotifier<List<Album>> {
     
     // Refresh albums when sync finishes to update counts/covers
     ref.listen(syncStatusProvider, (previous, next) {
-      if ((previous?.value == SyncState.syncingDown || previous?.value == SyncState.syncingUp) && 
-          next.value == SyncState.idle) {
+      if ((previous?.valueOrNull?.state == SyncState.syncingDown || previous?.valueOrNull?.state == SyncState.syncingUp) && 
+          next.valueOrNull?.state == SyncState.idle) {
         refresh();
       }
     });

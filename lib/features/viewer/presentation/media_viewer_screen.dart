@@ -14,11 +14,14 @@ import 'doc_item_viewer.dart';
 
 import '../../vault/presentation/decoy_auth_dialog.dart';
 import '../../../core/providers/auth_mode_provider.dart';
+import '../../settings/state/settings_providers.dart';
+import '../../settings/domain/settings_models.dart';
 
 class MediaViewerScreen extends ConsumerStatefulWidget {
   final int initialIndex;
+  final bool isDirectItemId;
 
-  const MediaViewerScreen({super.key, required this.initialIndex});
+  const MediaViewerScreen({super.key, required this.initialIndex, this.isDirectItemId = false});
 
   @override
   ConsumerState<MediaViewerScreen> createState() => _MediaViewerScreenState();
@@ -32,15 +35,21 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
+    if (!widget.isDirectItemId) {
+      _currentIndex = widget.initialIndex;
+      _pageController = PageController(initialPage: widget.initialIndex);
+    }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    if (!widget.isDirectItemId || _hasInitializedPageController) {
+      _pageController.dispose();
+    }
     super.dispose();
   }
+
+  bool _hasInitializedPageController = false;
 
   void _toggleHud() {
     setState(() {
@@ -97,6 +106,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final mediaItemsState = ref.watch(vaultListProvider);
+    final playbackSettings = ref.watch(playbackPrivacySettingsProvider);
+    
+    final isMinimal = playbackSettings.playbackMode == PlaybackMode.minimal;
+    final isSafe = playbackSettings.playbackMode == PlaybackMode.safe;
 
     return Scaffold(
       backgroundColor: Colors.black, // Immersive viewer
@@ -104,6 +117,18 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         data: (items) {
           if (items.isEmpty) return const Center(child: Text('No items', style: TextStyle(color: Colors.white)));
           
+          if (widget.isDirectItemId && !_hasInitializedPageController) {
+            final idx = items.indexWhere((e) => e.id == widget.initialIndex);
+            if (idx != -1) {
+              _currentIndex = idx;
+              _pageController = PageController(initialPage: idx);
+            } else {
+              _currentIndex = 0;
+              _pageController = PageController(initialPage: 0);
+            }
+            _hasInitializedPageController = true;
+          }
+
           final currentItem = items[_currentIndex];
 
           return Stack(
@@ -121,13 +146,22 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                   itemBuilder: (context, index) {
                     final item = items[index];
                     
+                    Widget viewer;
                     if (item.originalName.endsWith('.mp4') || item.originalName.endsWith('.mov')) {
-                      return VideoItemViewer(item: item, showHud: _showHud);
+                      viewer = VideoItemViewer(item: item, showHud: _showHud);
                     } else if (item.originalName.endsWith('.pdf')) {
-                      return DocItemViewer(item: item);
+                      viewer = DocItemViewer(item: item);
                     } else {
-                      return ImageItemViewer(item: item);
+                      viewer = ImageItemViewer(item: item);
                     }
+                    
+                    if (isSafe) {
+                      return ColorFiltered(
+                        colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.3), BlendMode.darken),
+                        child: viewer,
+                      );
+                    }
+                    return viewer;
                   },
                 ),
               ),
@@ -156,12 +190,13 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                           ),
                           Expanded(
                             child: Text(
-                              currentItem.originalName,
+                              playbackSettings.showFilenames ? currentItem.originalName : 'Secure Item',
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          IconButton(
+                          if (!isMinimal) ...[
+                            IconButton(
                             icon: const Icon(Icons.security, color: Colors.white),
                             onPressed: () async {
                               final success = await showDialog<bool>(
@@ -179,10 +214,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                               }
                             },
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.info_outline, color: Colors.white),
-                            onPressed: () => _showInfoOverlay(currentItem),
-                          ),
+                          if (playbackSettings.showMetadata)
+                            IconButton(
+                              icon: const Icon(Icons.info_outline, color: Colors.white),
+                              onPressed: () => _showInfoOverlay(currentItem),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -190,7 +227,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                 ),
                 
               // HUD Overlay - Bottom Bar
-              if (_showHud && !currentItem.originalName.endsWith('.mp4') && !currentItem.originalName.endsWith('.mov'))
+              if (_showHud && !isMinimal && !currentItem.originalName.endsWith('.mp4') && !currentItem.originalName.endsWith('.mov'))
                 Positioned(
                   bottom: 0,
                   left: 0,

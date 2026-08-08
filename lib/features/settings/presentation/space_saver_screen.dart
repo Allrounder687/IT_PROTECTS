@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/presentation/components/custom_app_bar.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/auth_mode_provider.dart';
+import '../../vault/data/local_vault_repository.dart';
 
 class SpaceSaverScreen extends ConsumerStatefulWidget {
   const SpaceSaverScreen({super.key});
@@ -12,6 +14,34 @@ class SpaceSaverScreen extends ConsumerStatefulWidget {
 
 class _SpaceSaverScreenState extends ConsumerState<SpaceSaverScreen> {
   bool _spaceSaverEnabled = false;
+  Map<String, int>? _storageStats;
+  bool _isLoadingStats = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    final repo = ref.read(localVaultRepositoryProvider);
+    final authMode = ref.read(authModeProvider);
+    final stats = await repo.getStorageStats(authMode);
+    if (mounted) {
+      setState(() {
+        _storageStats = stats;
+        _isLoadingStats = false;
+      });
+    }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes == 0) return '0 B';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,16 +90,25 @@ class _SpaceSaverScreenState extends ConsumerState<SpaceSaverScreen> {
           const SizedBox(height: 24),
           const Text('Storage Status', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.cloud_done, color: AppTheme.primary),
-            title: const Text('Backed up originals'),
-            trailing: const Text('12.4 GB', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.phone_android, color: Colors.green),
-            title: const Text('Local compressed copies'),
-            trailing: const Text('1.1 GB', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
+          if (_isLoadingStats)
+            const Center(child: CircularProgressIndicator())
+          else ...[
+            ListTile(
+              leading: const Icon(Icons.cloud_done, color: AppTheme.primary),
+              title: const Text('Backed up originals'),
+              trailing: Text(_formatBytes(_storageStats?['totalOriginal'] ?? 0), style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.phone_android, color: Colors.green),
+              title: const Text('Local encrypted copies'),
+              trailing: Text(
+                _spaceSaverEnabled 
+                    ? _formatBytes(((_storageStats?['totalOriginal'] ?? 0) * 0.2).toInt())
+                    : _formatBytes((_storageStats?['totalOriginal'] ?? 0) + ((_storageStats?['itemCount'] ?? 0) * 28)), 
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           ElevatedButton.icon(
             icon: const Icon(Icons.cleaning_services),
@@ -81,7 +120,7 @@ class _SpaceSaverScreenState extends ConsumerState<SpaceSaverScreen> {
             onPressed: _spaceSaverEnabled
                 ? () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Compressing 45 eligible items...')),
+                      SnackBar(content: Text('Compressing ${_storageStats?['itemCount'] ?? 0} eligible items...')),
                     );
                   }
                 : null,

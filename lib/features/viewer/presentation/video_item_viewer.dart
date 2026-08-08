@@ -5,6 +5,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../vault/domain/vault_item_entity.dart';
 import '../state/media_viewer_state.dart';
+import '../../settings/state/settings_providers.dart';
+import '../../settings/domain/settings_models.dart';
 
 class VideoItemViewer extends ConsumerStatefulWidget {
   final VaultItemEntity item;
@@ -59,6 +61,7 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
   @override
   Widget build(BuildContext context) {
     final sessionState = ref.watch(playbackSessionProvider(widget.item));
+    final playbackSettings = ref.watch(playbackPrivacySettingsProvider);
 
     return sessionState.when(
       data: (session) {
@@ -182,12 +185,12 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
           ],
         );
       },
-      loading: () => _buildSkeleton(),
+      loading: () => _buildSkeleton(playbackSettings),
       error: (e, st) => Center(child: Text('Error loading video: $e', style: const TextStyle(color: Colors.red))),
     );
   }
 
-  Widget _buildSkeleton() {
+  Widget _buildSkeleton(PlaybackPrivacySettings settings) {
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -204,7 +207,7 @@ class _VideoItemViewerState extends ConsumerState<VideoItemViewer> {
           children: [
             const CircularProgressIndicator(color: Colors.white54),
             const SizedBox(height: 16),
-            Text('Decrypting\n${widget.item.originalName}...', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
+            Text('Decrypting\n${settings.showFilenames ? widget.item.originalName : 'Secure Video'}...', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
           ],
         ),
       ),

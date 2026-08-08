@@ -15,6 +15,16 @@ class _CreatePinScreenState extends State<CreatePinScreen> {
     setState(() {
       if (_pin.length < 6) _pin += key;
     });
+    if (_pin.length == 6) {
+      if (_isPinValid()) {
+        Future.delayed(const Duration(milliseconds: 150), _onContinue);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please choose a stronger PIN')),
+        );
+        setState(() => _pin = '');
+      }
+    }
   }
 
   void _onDelete() {
@@ -37,10 +47,6 @@ class _CreatePinScreenState extends State<CreatePinScreen> {
   void _onContinue() {
     if (_isPinValid()) {
       context.push('/setup-pin/confirm', extra: _pin);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please choose a stronger PIN')),
-      );
     }
   }
 
@@ -133,7 +139,8 @@ class _CreatePinScreenState extends State<CreatePinScreen> {
       onPressed: () => _onKeyPress(value),
       style: TextButton.styleFrom(
         shape: const CircleBorder(),
-        padding: const EdgeInsets.all(24),
+        minimumSize: const Size(72, 72),
+        padding: const EdgeInsets.all(16),
         foregroundColor: Colors.white,
       ),
       child: Text(
@@ -148,7 +155,8 @@ class _CreatePinScreenState extends State<CreatePinScreen> {
       onPressed: onPressed,
       style: TextButton.styleFrom(
         shape: const CircleBorder(),
-        padding: const EdgeInsets.all(24),
+        minimumSize: const Size(72, 72),
+        padding: const EdgeInsets.all(16),
         foregroundColor: color ?? Colors.white70,
       ),
       child: Icon(icon, size: 28),
