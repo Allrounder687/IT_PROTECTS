@@ -218,7 +218,6 @@ class _VaultDashboardScreenState extends ConsumerState<VaultDashboardScreen> {
       },
     );
   }
-  }
 
   void _showSyncStatusSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(

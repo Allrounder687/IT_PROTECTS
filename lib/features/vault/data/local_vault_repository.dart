@@ -508,15 +508,15 @@ class LocalVaultRepository {
     await toDb.insert('media_items', {
       'album_id': newAlbumId,
       'original_name': item.originalName,
-      'file_path': item.filePath,
+      'file_path': item.encryptedFilePath,
       'wrapped_content_key': newWrappedKey,
       'iv': newIv,
       'size': item.size,
-      'mime_type': item.mimeType,
-      'created_at': item.createdAt.millisecondsSinceEpoch,
+      'mime_type': item.type,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
       'is_favourite': item.isFavourite ? 1 : 0,
       'is_trashed': item.isTrashed ? 1 : 0,
-      'deleted_at': item.deletedAt?.millisecondsSinceEpoch,
+      'deleted_at': item.deletedAt,
     });
 
     await fromDb.delete('media_items', where: 'id = ?', whereArgs: [item.id]);
@@ -769,13 +769,13 @@ class LocalVaultRepository {
   Future<Map<String, int>> getStorageStats(AuthMode authMode) async {
     final db = await getDatabase(authMode);
     final res = await db.rawQuery('SELECT SUM(size) as total FROM media_items');
-    final totalOriginal = Sqflite.firstIntValue(res) ?? 0;
+    final totalOriginal = res.isNotEmpty ? res.first.values.first as int? ?? 0 : 0;
     
     // In a real app we'd query the file system. For this demo, we estimate:
     // If Space Saver is toggled on, local size is ~20% of original. 
     // Otherwise, local size is exactly original + 28 bytes (encryption overhead) per item.
     final countRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM media_items');
-    final count = Sqflite.firstIntValue(countRes) ?? 0;
+    final count = countRes.isNotEmpty ? countRes.first.values.first as int? ?? 0 : 0;
     
     return {
       'totalOriginal': totalOriginal,

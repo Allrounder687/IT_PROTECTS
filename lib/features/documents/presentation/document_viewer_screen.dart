@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/presentation/components/custom_app_bar.dart';
 import '../../auth/state/auth_notifier.dart';
+import '../../../core/providers/auth_mode_provider.dart';
 import '../domain/document_template.dart';
 import '../../vault/data/local_vault_repository.dart';
 import '../../vault/domain/encryption_use_case.dart';
@@ -35,7 +36,7 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
   Future<void> _loadDocument() async {
     try {
       final repo = ref.read(localVaultRepositoryProvider);
-      final authMode = ref.read(authNotifierProvider).authMode;
+      final authMode = ref.read(authModeProvider);
       final encUseCase = ref.read(encryptionUseCaseProvider);
       final masterKeyBytes = ref.read(sessionProvider);
 

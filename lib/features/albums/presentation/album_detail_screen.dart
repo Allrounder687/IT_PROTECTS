@@ -15,6 +15,8 @@ import '../../vault/presentation/vault_item_context_menu.dart';
 import '../../documents/presentation/document_edit_screen.dart';
 import '../../documents/domain/document_template.dart';
 import '../domain/album.dart';
+
+class AlbumDetailScreen extends ConsumerStatefulWidget {
   final String albumId;
 
   const AlbumDetailScreen({super.key, required this.albumId});

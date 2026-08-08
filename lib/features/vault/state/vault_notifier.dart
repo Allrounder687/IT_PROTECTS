@@ -10,7 +10,6 @@ import '../../settings/state/settings_providers.dart';
 import '../../providers/state/sync_status_notifier.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../documents/domain/document_template.dart';
-import '../../core/utils/logging.dart';
 
 import '../domain/migration_use_case.dart';
 import '../../../core/providers/auth_mode_provider.dart';
