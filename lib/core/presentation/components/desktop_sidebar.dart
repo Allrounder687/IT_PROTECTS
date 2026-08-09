@@ -48,10 +48,13 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                         ignoring: _isCollapsed,
                         child: ExcludeSemantics(
                           excluding: _isCollapsed,
-                          child: Container(
-                            width: 260,
-                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-                            child: Row(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: Container(
+                              width: 260,
+                              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                              child: Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(8),
