@@ -20,6 +20,7 @@ class SecuritySettingsNotifier extends Notifier<SecuritySettings> {
       intruderPhotosEnabled: prefs.getBool('sec_intruder_photos') ?? false,
       faceDownLockEnabled: prefs.getBool('sec_face_down') ?? true,
       decoyVaultEnabled: prefs.getBool('sec_decoy_enabled') ?? false,
+      autoLockTimer: prefs.getInt('sec_auto_lock_timer') ?? 0,
     );
   }
 
@@ -45,6 +46,12 @@ class SecuritySettingsNotifier extends Notifier<SecuritySettings> {
     final prefs = ref.read(prefsProvider);
     await prefs.setBool('sec_face_down', enabled);
     state = state.copyWith(faceDownLockEnabled: enabled);
+  }
+
+  Future<void> setAutoLockTimer(int seconds) async {
+    final prefs = ref.read(prefsProvider);
+    await prefs.setInt('sec_auto_lock_timer', seconds);
+    state = state.copyWith(autoLockTimer: seconds);
   }
 }
 

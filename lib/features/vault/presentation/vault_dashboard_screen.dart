@@ -195,10 +195,13 @@ class _VaultDashboardScreenState extends ConsumerState<VaultDashboardScreen> {
       );
     }
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = (screenWidth / 150).floor().clamp(3, 10);
+
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
@@ -241,8 +244,23 @@ class _VaultDashboardScreenState extends ConsumerState<VaultDashboardScreen> {
                   const SizedBox(height: 16),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.cloud_queue, color: Colors.blue),
-                    title: const Text('Pending Uploads/Deletions'),
+                    leading: const Icon(Icons.cloud_done, color: Colors.green),
+                    title: const Text('Successfully Uploaded'),
+                    trailing: Text('${statusData.uploadedCount}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.sync, color: Colors.blueAccent),
+                    title: const Text('Ongoing / Active'),
+                    trailing: Text(
+                      (statusData.state == SyncState.syncingUp || statusData.state == SyncState.syncingDown) ? 'Yes' : 'No', 
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.cloud_queue, color: Colors.orange),
+                    title: const Text('Pending / Left'),
                     trailing: Text('${statusData.pendingCount}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                   ListTile(

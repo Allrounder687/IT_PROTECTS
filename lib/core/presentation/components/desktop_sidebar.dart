@@ -56,6 +56,15 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                               padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
                               child: Row(
                               children: [
+                                IconButton(
+                                  icon: const Icon(Icons.menu_open, color: AppTheme.textSecondary),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isCollapsed = true;
+                                    });
+                                  },
+                                  tooltip: 'Collapse Sidebar',
+                                ),
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
@@ -84,15 +93,6 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                                     softWrap: false,
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.menu_open, color: AppTheme.textSecondary),
-                                  onPressed: () {
-                                    setState(() {
-                                      _isCollapsed = true;
-                                    });
-                                  },
-                                  tooltip: 'Collapse Sidebar',
-                                ),
                               ],
                             ),
                           ),
@@ -109,8 +109,8 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                           excluding: !_isCollapsed,
                           child: Container(
                             width: 88,
-                            padding: const EdgeInsets.fromLTRB(0, 24, 0, 32),
-                            alignment: Alignment.center,
+                            padding: const EdgeInsets.fromLTRB(20, 24, 0, 32),
+                            alignment: Alignment.centerLeft,
                             child: IconButton(
                               icon: const Icon(Icons.menu, color: AppTheme.textSecondary),
                               onPressed: () {

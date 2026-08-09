@@ -14,6 +14,7 @@ import '../../auth/state/auth_notifier.dart';
 import '../../../core/providers/session_provider.dart';
 import 'decoy_auth_dialog.dart';
 import '../../../core/providers/auth_mode_provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 void showVaultItemContextMenu(BuildContext context, WidgetRef ref, VaultItemEntity item, {int? currentAlbumId}) {
   showModalBottomSheet(
@@ -203,21 +204,37 @@ Future<void> executeSafeSend(BuildContext context, WidgetRef ref, VaultItemEntit
       masterKey,
     );
     
-    // 3. Save to cache with original filename
-    final tempDir = await getTemporaryDirectory();
-    final tempFile = File('${tempDir.path}/${item.originalName}');
-    await tempFile.writeAsBytes(decryptedBytes);
-    
-    // 4. Share
-    final result = await Share.shareXFiles([XFile(tempFile.path)]);
-    
-    // 5. Cleanup
-    if (await tempFile.exists()) {
-      await tempFile.delete();
-    }
-    
-    if (context.mounted && result.status == ShareResultStatus.success) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent securely! (File deleted from cache)')));
+    // 3. Check Platform
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      // Desktop doesn't support share_plus very well for files, use Save As fallback
+      final String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save decrypted file',
+        fileName: item.originalName,
+      );
+
+      if (outputFile != null) {
+        final out = File(outputFile);
+        await out.writeAsBytes(decryptedBytes);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved securely to ${out.path}')));
+        }
+      }
+    } else {
+      // 4. Mobile Share
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/${item.originalName}');
+      await tempFile.writeAsBytes(decryptedBytes);
+      
+      final result = await Share.shareXFiles([XFile(tempFile.path)]);
+      
+      // 5. Cleanup
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+      
+      if (context.mounted && result.status == ShareResultStatus.success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent securely! (File deleted from cache)')));
+      }
     }
   } catch (e) {
     if (context.mounted) {

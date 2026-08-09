@@ -122,15 +122,19 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               child: albumsAsync.when(
           loading: () => const SkeletonGrid(isAlbum: true),
           error: (error, stackTrace) => Center(child: Text('Error: $error')),
-          data: (albums) => GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.9,
-            ),
-            itemCount: albums.length,
+          data: (albums) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final crossAxisCount = (screenWidth / 180).floor().clamp(2, 6);
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 0.9,
+              ),
+              itemCount: albums.length,
             itemBuilder: (context, index) {
               final album = albums[index];
               return _buildAlbumCard(context, ref, album);

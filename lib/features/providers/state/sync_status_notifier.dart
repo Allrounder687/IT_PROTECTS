@@ -19,12 +19,14 @@ class SyncStatus {
   final SyncState state;
   final int pendingCount;
   final int errorCount;
+  final int uploadedCount;
   final DateTime? lastSyncTime;
 
   const SyncStatus({
     this.state = SyncState.idle,
     this.pendingCount = 0,
     this.errorCount = 0,
+    this.uploadedCount = 0,
     this.lastSyncTime,
   });
 
@@ -32,12 +34,14 @@ class SyncStatus {
     SyncState? state,
     int? pendingCount,
     int? errorCount,
+    int? uploadedCount,
     DateTime? lastSyncTime,
   }) {
     return SyncStatus(
       state: state ?? this.state,
       pendingCount: pendingCount ?? this.pendingCount,
       errorCount: errorCount ?? this.errorCount,
+      uploadedCount: uploadedCount ?? this.uploadedCount,
       lastSyncTime: lastSyncTime ?? this.lastSyncTime,
     );
   }
@@ -61,9 +65,11 @@ class SyncStatusNotifier extends AsyncNotifier<SyncStatus> {
       final db = await repo.getDatabase(authMode);
       final pendingRes = await db.rawQuery('SELECT COUNT(*) FROM sync_queue WHERE retry_count = 0');
       final errorRes = await db.rawQuery('SELECT COUNT(*) FROM sync_queue WHERE retry_count > 0');
+      final uploadedRes = await db.rawQuery('SELECT COUNT(*) FROM media_items WHERE remote_id IS NOT NULL');
       final pendingCount = (pendingRes.isNotEmpty && pendingRes.first.values.first != null) ? pendingRes.first.values.first as int : 0;
       final errorCount = (errorRes.isNotEmpty && errorRes.first.values.first != null) ? errorRes.first.values.first as int : 0;
-      return currentStatus.copyWith(pendingCount: pendingCount, errorCount: errorCount);
+      final uploadedCount = (uploadedRes.isNotEmpty && uploadedRes.first.values.first != null) ? uploadedRes.first.values.first as int : 0;
+      return currentStatus.copyWith(pendingCount: pendingCount, errorCount: errorCount, uploadedCount: uploadedCount);
     } catch (e) {
       return currentStatus;
     }

@@ -107,14 +107,8 @@ class AuthRepository {
   }
 
   Future<void> clearAll() async {
-    final keys = [
-      _keyPinHash, _keyDecoyPinHash, _keyMasterKey, 
-      _keyDecoyMasterKey, _keyDbKey, _keyDecoyDbKey, _keySalt, _keyDecoySalt
-    ];
-    for (final key in keys) {
-      try {
-        await _storage.delete(key: key);
-      } catch (_) {}
-    }
+    try {
+      await _storage.deleteAll();
+    } catch (_) {}
   }
 }

@@ -77,7 +77,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
               ref.read(authNotifierProvider.notifier).resetVault().then((_) {
                 // Invalidate the provider so OnboardingScreen knows the PIN is gone
                 ref.invalidate(hasPinProvider);
-                router.go('/');
+                router.go('/setup-pin');
               });
             },
             child: const Text('Reset Vault', style: TextStyle(color: Colors.redAccent)),

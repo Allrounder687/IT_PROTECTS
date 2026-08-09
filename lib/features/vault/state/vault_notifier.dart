@@ -29,7 +29,12 @@ class VaultAsyncNotifier extends AutoDisposeAsyncNotifier<List<VaultItemEntity>>
   @override
   Future<List<VaultItemEntity>> build() async {
     final migration = ref.read(migrationUseCaseProvider);
-    await migration.migrateOldImages();
+    try {
+      await migration.migrateOldImages();
+    } catch (e) {
+      // Ignore migration errors so they don't break the whole vault
+      debugPrint('Vault migration error: $e');
+    }
 
     final authMode = ref.watch(authModeProvider);
     final localRepo = ref.read(localVaultRepositoryProvider);

@@ -47,10 +47,15 @@ class _LifecycleCleanupManagerState extends ConsumerState<LifecycleCleanupManage
   }
 
   @override
+  Timer? _autoLockTimer;
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       // Always reset the ignore flag when the app resumes
       ref.read(ignoreLifecycleLockProvider.notifier).state = false;
+      _autoLockTimer?.cancel();
+      _autoLockTimer = null;
       return;
     }
 
@@ -68,8 +73,18 @@ class _LifecycleCleanupManagerState extends ConsumerState<LifecycleCleanupManage
       final tempManager = ref.read(temporaryFileManagerProvider);
       tempManager.wipeAll();
       
-      // Lock vault when backgrounded
-      ref.read(authNotifierProvider.notifier).lockVault();
+      // Auto-lock logic
+      final security = ref.read(securitySettingsProvider);
+      if (security.autoLockTimer == 0) {
+        // Lock immediately
+        ref.read(authNotifierProvider.notifier).lockVault();
+      } else {
+        // Schedule lock
+        _autoLockTimer?.cancel();
+        _autoLockTimer = Timer(Duration(seconds: security.autoLockTimer), () {
+          ref.read(authNotifierProvider.notifier).lockVault();
+        });
+      }
     }
   }
 

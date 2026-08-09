@@ -72,6 +72,26 @@ class SettingsScreen extends ConsumerWidget {
               value: security.faceDownLockEnabled,
               onChanged: (v) => ref.read(securitySettingsProvider.notifier).toggleFaceDownLock(v),
             ),
+            ListTile(
+              leading: const Icon(Icons.timer),
+              title: const Text('Auto-lock Timer'),
+              subtitle: const Text('Lock vault when app is in background'),
+              trailing: DropdownButton<int>(
+                value: security.autoLockTimer,
+                underline: const SizedBox(),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Immediately')),
+                  DropdownMenuItem(value: 60, child: Text('1 Minute')),
+                  DropdownMenuItem(value: 300, child: Text('5 Minutes')),
+                  DropdownMenuItem(value: 900, child: Text('15 Minutes')),
+                ],
+                onChanged: (v) {
+                  if (v != null) {
+                    ref.read(securitySettingsProvider.notifier).setAutoLockTimer(v);
+                  }
+                },
+              ),
+            ),
             SwitchListTile(
               secondary: const Icon(Icons.security),
               title: const Text('Decoy Vault'),

@@ -3,12 +3,14 @@ class SecuritySettings {
   final bool intruderPhotosEnabled;
   final bool faceDownLockEnabled;
   final bool decoyVaultEnabled;
+  final int autoLockTimer; // in seconds, 0 = immediately
 
   SecuritySettings({
     required this.biometricEnabled,
     required this.intruderPhotosEnabled,
     required this.faceDownLockEnabled,
     required this.decoyVaultEnabled,
+    required this.autoLockTimer,
   });
 
   SecuritySettings copyWith({
@@ -16,12 +18,14 @@ class SecuritySettings {
     bool? intruderPhotosEnabled,
     bool? faceDownLockEnabled,
     bool? decoyVaultEnabled,
+    int? autoLockTimer,
   }) {
     return SecuritySettings(
       biometricEnabled: biometricEnabled ?? this.biometricEnabled,
       intruderPhotosEnabled: intruderPhotosEnabled ?? this.intruderPhotosEnabled,
       faceDownLockEnabled: faceDownLockEnabled ?? this.faceDownLockEnabled,
       decoyVaultEnabled: decoyVaultEnabled ?? this.decoyVaultEnabled,
+      autoLockTimer: autoLockTimer ?? this.autoLockTimer,
     );
   }
 }
