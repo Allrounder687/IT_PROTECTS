@@ -44,8 +44,9 @@ class _PinScreenState extends ConsumerState<PinScreen> {
   }
 
   void _verifyPin() {
+    final enteredPin = _pin;
     setState(() => _pin = '');
-    ref.read(authNotifierProvider.notifier).unlockVault(_pin);
+    ref.read(authNotifierProvider.notifier).unlockVault(enteredPin);
   }
 
   void _triggerShake() {
