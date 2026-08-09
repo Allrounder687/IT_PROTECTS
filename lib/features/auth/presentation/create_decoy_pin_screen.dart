@@ -19,6 +19,16 @@ class _CreateDecoyPinScreenState extends ConsumerState<CreateDecoyPinScreen> {
     setState(() {
       if (_pin.length < 6) _pin += key;
     });
+    if (_pin.length == 6) {
+      if (_isPinValid()) {
+        Future.delayed(const Duration(milliseconds: 150), _onContinue);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please choose a stronger PIN')),
+        );
+        setState(() => _pin = '');
+      }
+    }
   }
 
   void _onDelete() {
