@@ -155,10 +155,8 @@ class AuthNotifier extends Notifier<AuthState> {
       // We rely on local_auth to verify identity first
       final authenticated = await auth.authenticate(
         localizedReason: 'Please authenticate to enable biometric unlock',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
       
       if (!authenticated) throw Exception("Authentication failed");
@@ -194,11 +192,9 @@ class AuthNotifier extends Notifier<AuthState> {
       ref.read(biometricStatusProvider.notifier).state = 'Fingerprint prompt opened';
       
       final authenticated = await auth.authenticate(
-        localizedReason: 'Authenticate to unlock your vault',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+        localizedReason: 'Please authenticate to unlock IT Protects',
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
       
       if (!authenticated) {
