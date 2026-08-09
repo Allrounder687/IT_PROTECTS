@@ -71,13 +71,12 @@ class _PinScreenState extends ConsumerState<PinScreen> {
           ),
           TextButton(
             onPressed: () {
+              final router = GoRouter.of(context);
               Navigator.of(context).pop();
               ref.read(authNotifierProvider.notifier).resetVault().then((_) {
-                if (context.mounted) {
-                  // Invalidate the provider so OnboardingScreen knows the PIN is gone
-                  ref.invalidate(hasPinProvider);
-                  context.go('/');
-                }
+                // Invalidate the provider so OnboardingScreen knows the PIN is gone
+                ref.invalidate(hasPinProvider);
+                router.go('/');
               });
             },
             child: const Text('Reset Vault', style: TextStyle(color: Colors.redAccent)),
