@@ -135,11 +135,13 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                 childAspectRatio: 0.9,
               ),
               itemCount: albums.length,
-            itemBuilder: (context, index) {
-              final album = albums[index];
-              return _buildAlbumCard(context, ref, album);
-            },
-                ),
+              itemBuilder: (context, index) {
+                final album = albums[index];
+                return _buildAlbumCard(context, ref, album);
+              },
+            );
+          },
+        ),
               ),
             ),
           ],

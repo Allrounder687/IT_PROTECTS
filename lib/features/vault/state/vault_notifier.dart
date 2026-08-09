@@ -13,6 +13,7 @@ import '../../documents/domain/document_template.dart';
 
 import '../domain/migration_use_case.dart';
 import '../../../core/providers/auth_mode_provider.dart';
+import 'package:flutter/foundation.dart';
 
 final vaultListProvider = AsyncNotifierProvider.autoDispose<VaultAsyncNotifier, List<VaultItemEntity>>(VaultAsyncNotifier.new);
 
